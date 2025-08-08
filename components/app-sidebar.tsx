@@ -1,6 +1,6 @@
 "use client";
 
-import type * as React from "react";
+import * as React from "react";
 import { MessageSquare, Plus, Settings } from "lucide-react";
 import {
   Sidebar,
@@ -13,21 +13,21 @@ import {
 import { ConversationList } from "./conversation-list";
 import { PlanUsage } from "./plan-usage";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { ConversationSummary } from "@/types/chat";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  activeConversationId?: string;
-  onConversationSelect?: (id: string) => void;
-  onNewConversation?: () => void;
+  conversations: ConversationSummary[];
 }
 
-export function AppSidebar({
-  activeConversationId,
-  onConversationSelect,
-  onNewConversation,
-  ...props
-}: AppSidebarProps) {
+export function AppSidebar({ conversations, ...props }: AppSidebarProps) {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const pathname = usePathname();
+  const activeConversationId = React.useMemo(() => {
+    const match = pathname.match(/^\/chat\/(.+)$/);
+    return match ? decodeURIComponent(match[1]) : undefined;
+  }, [pathname]);
 
   return (
     <Sidebar {...props} className="border-r border-gray-800 bg-gray-950">
@@ -41,13 +41,13 @@ export function AppSidebar({
               <h2 className="text-lg font-semibold text-gray-100">AI Chat</h2>
             </div>
           )}
-          <button
-            onClick={onNewConversation}
+          <Link
+            href="/chat"
             className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition-colors"
             aria-label="New conversation"
           >
             <Plus size={16} />
-          </button>
+          </Link>
         </div>
       </SidebarHeader>
 
@@ -55,7 +55,7 @@ export function AppSidebar({
         <ConversationList
           isCollapsed={isCollapsed}
           activeConversationId={activeConversationId}
-          onConversationSelect={onConversationSelect}
+          conversations={conversations}
         />
       </SidebarContent>
 

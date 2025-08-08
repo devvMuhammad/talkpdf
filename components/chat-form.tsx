@@ -7,6 +7,7 @@ import { SparklesIcon, PaperclipIcon, SendHorizontal } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
 
 import { useChat } from "ai/react";
+import type { Message } from "ai";
 
 import { Button } from "@/components/ui/button";
 import { AutoResizeTextarea } from "@/components/autoresize-textarea";
@@ -15,12 +16,14 @@ import { WelcomeStage } from "./welcome-stage";
 interface ChatFormProps extends React.ComponentProps<"form"> {
   conversationId?: string;
   onChatStart?: () => void;
+  initialMessages?: Message[];
 }
 
-export function ChatForm({ conversationId, onChatStart }: ChatFormProps) {
+export function ChatForm({ conversationId, onChatStart, initialMessages }: ChatFormProps) {
   const { messages, input, setInput, append, isLoading } = useChat({
     api: "/api/chat",
     id: conversationId,
+    initialMessages,
   });
 
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
