@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export function ChatListSkeleton() {
     return (
-        <div className="p-2 space-y-2">
+        <div className="p-2 space-y-2 w-[20rem]">
             <div className="px-3 py-2">
                 <Skeleton className="h-3 w-32 bg-gray-800" />
             </div>
