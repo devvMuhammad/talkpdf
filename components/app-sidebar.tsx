@@ -15,12 +15,13 @@ import { PlanUsage } from "./plan-usage";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ConversationSummary } from "@/types/chat";
+import { use as usePromise } from "react";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  conversations: ConversationSummary[];
+  conversationsPromise: Promise<ConversationSummary[]>;
 }
 
-export function AppSidebar({ conversations, ...props }: AppSidebarProps) {
+export function AppSidebar({ conversationsPromise, ...props }: AppSidebarProps) {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const pathname = usePathname();
@@ -28,6 +29,8 @@ export function AppSidebar({ conversations, ...props }: AppSidebarProps) {
     const match = pathname.match(/^\/chat\/(.+)$/);
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [pathname]);
+
+  const conversations = usePromise(conversationsPromise);
 
   return (
     <Sidebar {...props} className="border-r border-gray-800 bg-gray-950">
