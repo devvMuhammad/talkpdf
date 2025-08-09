@@ -184,7 +184,7 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
       </div>
 
       {/* Fixed Input Area */}
-      <div ref={inputContainerRef} className="absolute bottom-40 px-10 md:px-20 left-0 right-0 z-20 pt-3 md:pt-4">
+      <div ref={inputContainerRef} className="absolute bottom-40 px-6 left-0 right-0 z-20 pt-3 md:pt-4">
         <div className="max-w-4xl mx-auto">
           <form
             onSubmit={handleSubmit}
