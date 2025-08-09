@@ -7,7 +7,7 @@ import { SparklesIcon, PaperclipIcon, SendHorizontal } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
 
 import { useChat } from "@ai-sdk/react";
-import type { UIMessage } from "ai";
+import { DefaultChatTransport, type UIMessage } from "ai";
 
 import { Button } from "@/components/ui/button";
 import { AutoResizeTextarea } from "@/components/autoresize-textarea";
@@ -19,24 +19,14 @@ interface ChatFormProps extends React.ComponentProps<"form"> {
   initialMessages?: UIMessage[];
 }
 
-export function ChatForm({ conversationId, onChatStart, initialMessages }: ChatFormProps) {
-  // Normalize any legacy messages with `content` into UIMessage `parts`
-  const normalizedInitialMessages = useMemo(() => {
-    if (!initialMessages) return undefined;
-    return initialMessages.map((m: any) => {
-      if (m && Array.isArray(m.parts)) return m as UIMessage;
-      const content = m?.content ?? "";
-      return {
-        id: m?.id ?? Math.random().toString(36).slice(2),
-        role: m?.role,
-        parts: [{ type: "text", text: String(content) }],
-      } as UIMessage;
-    });
-  }, [initialMessages]);
+export function ChatForm({ conversationId, onChatStart, }: ChatFormProps) {
 
-  const { messages, status, sendMessage } = useChat({
+  const { messages, status, sendMessage } = useChat<UIMessage>({
     id: conversationId,
-    messages: normalizedInitialMessages,
+    messages: [],
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+    }),
   });
 
   const [input, setInput] = useState("");
@@ -57,18 +47,7 @@ export function ChatForm({ conversationId, onChatStart, initialMessages }: ChatF
     e.preventDefault();
     const value = input.trim();
     if (!value) return;
-    sendMessage(
-      {
-        role: "user",
-        parts: [{ type: "text", text: value }],
-      },
-      {
-        body: {
-          selectedModel,
-          generateImages,
-        },
-      }
-    );
+    sendMessage({ text: value })
     setInput("");
   };
 
