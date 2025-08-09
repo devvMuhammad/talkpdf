@@ -5,6 +5,7 @@ import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import { SparklesIcon, PaperclipIcon, SendHorizontal, ChevronDown } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
+import { Doc } from "@/convex/_generated/dataModel";
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -15,9 +16,10 @@ import { AutoResizeTextarea } from "@/components/autoresize-textarea";
 interface ChatFormProps extends React.ComponentProps<"form"> {
   conversationId?: string;
   initialMessages?: UIMessage[];
+  files?: Doc<"files">[];
 }
 
-export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
+export function ChatForm({ conversationId, initialMessages, files }: ChatFormProps) {
   const { messages, status, sendMessage } = useChat({
     id: conversationId,
     transport: new DefaultChatTransport({
@@ -124,67 +126,83 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
   };
 
   return (
-    <div className="relative flex h-full max-h-full flex-col">
-      <div className="flex-1 flex justify-center">
-        <div className="w-full max-w-4xl mx-auto flex flex-col h-full">
-          {/* Messages Area */}
-          <div
-            ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto px-6 pt-6"
-            style={{ paddingBottom: Math.max(inputHeight + 24, 96) }}
-          >
-            <div className="flex flex-col gap-6 md:gap-8 mx-auto">
-              {messages.map((message, index) => {
-                const text = message.parts
-                  .map((part) => (part.type === "text" ? part.text : ""))
-                  .join("");
-                const isAssistant = message.role === "assistant";
-                return (
-                  <div
-                    key={index}
-                    className={
-                      isAssistant
-                        ? "w-full whitespace-pre-wrap text-[15px] leading-7 text-gray-200 tracking-[-0.01em]"
-                        : "max-w-[75%] self-end rounded-2xl px-4 py-3 text-[15px] leading-6 bg-blue-600 text-white shadow-md"
-                    }
-                  >
-                    {text}
+    <div className="h-full min-h-0 flex flex-col overflow-hidden">
+      {files && files.length > 0 && (
+        <div className="max-w-4xl mx-auto px-6 pt-4">
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4">
+            <div className="text-xs text-gray-400 mb-3">Uploaded files</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {files.map((f: any) => (
+                <div key={f._id} className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2">
+                  <div className="w-8 h-8 rounded-md bg-blue-600/20 border border-blue-700/30 flex items-center justify-center text-blue-300 text-xs">PDF</div>
+                  <div className="min-w-0">
+                    <div className="text-sm text-gray-100 truncate">{f.name}</div>
+                    <div className="text-xs text-gray-500">{(f.size / (1024 * 1024)).toFixed(2)} MB</div>
                   </div>
-                );
-              })}
-              {isLoading && (
-                <div className="self-start flex items-center gap-2 px-1 py-1 text-gray-400">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse" />
-                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-75" />
-                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-150" />
-                  </div>
-                  <span className="text-sm text-gray-400">AI is responding...</span>
                 </div>
-              )}
+              ))}
             </div>
           </div>
-          {/* Floating Scroll-to-bottom Button */}
-          {!isAtBottom && (
-            <div
-              className="fixed right-6 z-30"
-              style={{ bottom: Math.max(inputHeight + 16, 96) }}
-            >
-              <Button
-                onClick={scrollToBottom}
-                className="shadow-lg bg-gray-800 text-gray-100 hover:bg-gray-700 border border-gray-700"
-                size="sm"
-              >
-                <ChevronDown className="mr-1 h-4 w-4" />
-                Scroll to bottom
-              </Button>
-            </div>
-          )}
         </div>
+      )}
+      <div className="w-full max-w-4xl mx-auto flex flex-col flex-1 min-h-0">
+        {/* Messages Area */}
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 min-h-0 overflow-y-auto px-6 pt-6"
+          style={{ paddingBottom: Math.max(inputHeight + 24, 96) }}
+        >
+          <div className="flex flex-col gap-6 md:gap-8 mx-auto">
+            {messages.map((message, index) => {
+              const text = message.parts
+                .map((part) => (part.type === "text" ? part.text : ""))
+                .join("");
+              const isAssistant = message.role === "assistant";
+              return (
+                <div
+                  key={index}
+                  className={
+                    isAssistant
+                      ? "w-full whitespace-pre-wrap text-[15px] leading-7 text-gray-200 tracking-[-0.01em]"
+                      : "max-w-[75%] self-end rounded-2xl px-4 py-3 text-[15px] leading-6 bg-blue-600 text-white shadow-md"
+                  }
+                >
+                  {text}
+                </div>
+              );
+            })}
+            {isLoading && (
+              <div className="self-start flex items-center gap-2 px-1 py-1 text-gray-400">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse" />
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-75" />
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-150" />
+                </div>
+                <span className="text-sm text-gray-400">AI is responding...</span>
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Floating Scroll-to-bottom Button */}
+        {!isAtBottom && (
+          <div
+            className="fixed right-6 z-30"
+            style={{ bottom: Math.max(inputHeight + 16, 96) }}
+          >
+            <Button
+              onClick={scrollToBottom}
+              className="shadow-lg bg-gray-800 text-gray-100 hover:bg-gray-700 border border-gray-700"
+              size="sm"
+            >
+              <ChevronDown className="mr-1 h-4 w-4" />
+              Scroll to bottom
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Fixed Input Area */}
-      <div ref={inputContainerRef} className="absolute bottom-40 px-6 left-0 right-0 z-20 pt-3 md:pt-4">
+      <div ref={inputContainerRef} className="px-6 pt-3 md:pt-4 shrink-0">
         <div className="max-w-4xl mx-auto">
           <form
             onSubmit={handleSubmit}
