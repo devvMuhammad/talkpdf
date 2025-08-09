@@ -1,8 +1,8 @@
 "use client";
 
-import type React from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { MoreHorizontal, MessageSquare } from "lucide-react";
+import { MoreHorizontal, MessageSquare, Trash2 } from "lucide-react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -11,7 +11,21 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Doc } from "@/convex/_generated/dataModel";
+import { Doc, Id } from "@/convex/_generated/dataModel";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
 
 function formatRelative(ts: number): string {
   const diff = Date.now() - ts;
@@ -42,6 +56,8 @@ export function ConversationList({
   activeConversationId,
   conversations,
 }: ConversationListProps) {
+  const deleteConversation = useMutation(api.conversations.remove);
+  const [pendingDelete, setPendingDelete] = useState<Id<"conversations"> | null>(null);
   return (
     <SidebarGroup>
       {!isCollapsed && (
@@ -97,16 +113,48 @@ export function ConversationList({
                   </div>
 
                   {!isCollapsed && (
-                    <button
-                      className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-100 hover:bg-gray-700 transition-all rounded-md flex items-center justify-center"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      aria-label="More options"
-                    >
-                      <MoreHorizontal size={12} />
-                    </button>
+                    <AlertDialog open={pendingDelete === conversation._id} onOpenChange={(open) => setPendingDelete(open ? conversation._id : null)}>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          className="absolute bottom-2 right-2 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 hover:bg-gray-700 transition-all rounded-md flex items-center justify-center"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setPendingDelete(conversation._id);
+                          }}
+                          aria-label="Delete conversation"
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-gray-900 border border-gray-800">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="text-gray-100">Delete conversation?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-gray-400">
+                            This will permanently delete "{conversation.title}" and all of its messages.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700"
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              try {
+                                await deleteConversation({ id: conversation._id });
+                                toast({ title: "Deleted", description: "Conversation removed." });
+                              } catch (err) {
+                                toast({ title: "Failed", description: "Could not delete conversation.", variant: "destructive" });
+                              } finally {
+                                setPendingDelete(null);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" /> Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </Link>
               </SidebarMenuItem>

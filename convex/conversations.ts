@@ -62,3 +62,20 @@ export const getByUserId = query({
     return conversations;
   },
 });
+
+export const remove = mutation({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, { id }) => {
+    // Delete all messages in the conversation
+    const msgs = await ctx.db
+      .query("messages")
+      .withIndex("by_convo", (q) => q.eq("conversationId", id))
+      .collect();
+    for (const m of msgs) {
+      await ctx.db.delete(m._id);
+    }
+    // Delete the conversation itself
+    await ctx.db.delete(id);
+    return null;
+  },
+});

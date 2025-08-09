@@ -1,3 +1,10 @@
+---
+alwaysApply: true
+---
+
+The `WelcomeStage` component is displayed on the chat screen before a conversation has started. It shows a welcome message and a form to start the chat.
+
+It is used within the [chat-form.tsx](mdc:components/chat-form.tsx) component.
 The `WelcomeStage` component is displayed on the chat screen before a conversation has started. It shows a welcome message and a form to start the chat.
 
 It is used within the [chat-form.tsx](mdc:components/chat-form.tsx) component.
