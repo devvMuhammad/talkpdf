@@ -20,6 +20,8 @@ import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import { toast } from "sonner";
 import { MemoizedMarkdown } from "./memoized-markdown";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 interface ChatFormProps extends React.ComponentProps<"form"> {
   conversationId?: string;
@@ -51,6 +53,7 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
   const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [generateImages, setGenerateImages] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(true);
 
   const isLoading = status === "submitted";
 
@@ -139,34 +142,52 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     <div className="h-full min-h-0 flex flex-col overflow-hidden">
       {files && files.length > 0 && (
         <div className="max-w-4xl mx-auto px-6 pt-4">
-          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4">
-            <div className="text-xs text-gray-400 mb-3">Uploaded files</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {files.map((f: any) => (
-                <div key={f._id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-md bg-blue-600/20 border border-blue-700/30 flex items-center justify-center text-blue-300 text-xs">PDF</div>
-                    <div className="min-w-0">
-                      <div className="text-sm text-gray-100 truncate">{f.name}</div>
-                      <div className="text-xs text-gray-500">{(f.size / (1024 * 1024)).toFixed(2)} MB</div>
-                    </div>
-                  </div>
+          <Collapsible open={filesOpen} onOpenChange={setFilesOpen}>
+            <div className="rounded-xl border border-gray-800 bg-gray-900/60">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="text-xs text-gray-400">Uploaded files</div>
+                <CollapsibleTrigger asChild>
                   <Button
-                    asChild
                     size="sm"
                     variant="ghost"
                     className="h-8 px-2 text-gray-300 hover:text-gray-100 hover:bg-gray-800"
-                    disabled={!fileIdToUrl.get(String(f._id))}
-                    title={fileIdToUrl.get(String(f._id)) ? "Download" : "Preparing link..."}
                   >
-                    <a href={fileIdToUrl.get(String(f._id)) || undefined} download>
-                      <Download className="h-4 w-4" />
-                    </a>
+                    <ChevronDown className={cn("mr-1 h-4 w-4 transition-transform", filesOpen ? "rotate-180" : "rotate-0")} />
+                    {filesOpen ? "Hide" : "Show"}
                   </Button>
+                </CollapsibleTrigger>
+              </div>
+              <CollapsibleContent>
+                <div className="px-4 pb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {files.map((f: any) => (
+                      <div key={f._id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-md bg-blue-600/20 border border-blue-700/30 flex items-center justify-center text-blue-300 text-xs">PDF</div>
+                          <div className="min-w-0">
+                            <div className="text-sm text-gray-100 truncate">{f.name}</div>
+                            <div className="text-xs text-gray-500">{(f.size / (1024 * 1024)).toFixed(2)} MB</div>
+                          </div>
+                        </div>
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-gray-300 hover:text-gray-100 hover:bg-gray-800"
+                          disabled={!fileIdToUrl.get(String(f._id))}
+                          title={fileIdToUrl.get(String(f._id)) ? "Download" : "Preparing link..."}
+                        >
+                          <a href={fileIdToUrl.get(String(f._id)) || undefined} download>
+                            <Download className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              </CollapsibleContent>
             </div>
-          </div>
+          </Collapsible>
         </div>
       )}
       <div className="w-full max-w-4xl mx-auto flex flex-col flex-1 min-h-0">
