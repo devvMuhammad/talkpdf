@@ -18,18 +18,19 @@ interface ChatFormProps extends React.ComponentProps<"form"> {
 }
 
 export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
-  const { messages, status, sendMessage, setMessages } = useChat({
+  const { messages, status, sendMessage } = useChat({
     id: conversationId,
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
-  });
-
-  useEffect(() => {
-    if (initialMessages) {
-      setMessages(initialMessages);
+    messages: initialMessages,
+    onData: (data) => {
+      console.log("DATA", data)
+    },
+    onFinish: (message) => {
+      console.log("FINISH", message)
     }
-  }, [initialMessages, setMessages]);
+  });
 
   const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
@@ -65,9 +66,7 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
                   data-role={message.role}
                   className="max-w-[85%] rounded-2xl px-4 py-3 text-sm data-[role=assistant]:self-start data-[role=user]:self-end data-[role=assistant]:bg-gray-800 data-[role=user]:bg-blue-600 data-[role=assistant]:text-gray-100 data-[role=user]:text-white border data-[role=assistant]:border-gray-700 data-[role=user]:border-blue-500 shadow-sm"
                 >
-                  {message.parts
-                    .map((part) => (part.type === "text" ? part.text : part.type))
-                    .join("")}
+                  {message.parts.map((part) => part.type === "text" ? part.text : "").join("")}
                 </div>
               ))}
               {isLoading && (
@@ -77,7 +76,7 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
                     <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-75" />
                     <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-150" />
                   </div>
-                  <span className="text-sm text-gray-400">AI is typing...</span>
+                  <span className="text-sm text-gray-400">AI is responding...</span>
                 </div>
               )}
             </div>
