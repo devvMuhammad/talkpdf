@@ -1,29 +1,34 @@
-import { type CoreMessage, streamText } from "ai"
-import { openai } from "@ai-sdk/openai"
-import { anthropic } from "@ai-sdk/anthropic"
-import { google } from "@ai-sdk/google"
+import { ModelMessage } from "ai"
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { ChatOpenAI } from "@langchain/openai";
+
+type RequestBody = {
+  selectedModel: "openai" | "anthropic" | "google"
+  messages: ModelMessage[]
+}
+
+const systemPrompt = `
+You are a highly skilled AI assistant specialized in reading, understanding, and extracting information from PDFs. You can process both text-based and scanned PDFs, interpret charts, tables, images (when possible), and provide clear, well-structured answers. You should maintain accuracy, context awareness, and avoid making assumptions without evidence from the document.`
+
+const promptTemplate = ChatPromptTemplate.fromMessages([
+  ["system", systemPrompt],
+  ["user", "{input}"],
+])
 
 export async function POST(req: Request) {
-  const { messages, model }: { messages: CoreMessage[]; model?: string } = await req.json()
+  const { selectedModel, messages }: RequestBody = await req.json()
 
-  let selectedModel
-  const modelId = model || "gpt-4o-mini"
-
-  if (modelId.startsWith("gpt")) {
-    selectedModel = openai(modelId)
-  } else if (modelId.startsWith("claude")) {
-    selectedModel = anthropic(modelId)
-  } else if (modelId.startsWith("gemini")) {
-    selectedModel = google(modelId)
-  } else {
-    selectedModel = openai("gpt-4o-mini") // fallback
-  }
-
-  const result = streamText({
-    model: selectedModel,
-    system: "You are a helpful assistant.",
-    messages,
+  let model = new ChatOpenAI({
+    model: "chatgpt-4o-latest",
+    temperature: 0.5,
+    maxTokens: 1000,
   })
 
-  return result.toDataStreamResponse()
-}
+  const chain = promptTemplate.pipe(model)
+
+  // const chain = model.invoke(promptTemplate)
+
+  const result = await chain.invoke({ input: messages })
+
+  return Response.json(result)
+} 

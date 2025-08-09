@@ -6,8 +6,8 @@ import { useState, useEffect } from "react";
 import { SparklesIcon, PaperclipIcon, SendHorizontal } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
 
-import { useChat } from "ai/react";
-import type { Message } from "ai";
+import { useChat } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
 
 import { Button } from "@/components/ui/button";
 import { AutoResizeTextarea } from "@/components/autoresize-textarea";
@@ -16,7 +16,7 @@ import { WelcomeStage } from "./welcome-stage";
 interface ChatFormProps extends React.ComponentProps<"form"> {
   conversationId?: string;
   onChatStart?: () => void;
-  initialMessages?: Message[];
+  initialMessages?: UIMessage[];
 }
 
 export function ChatForm({ conversationId, onChatStart, initialMessages }: ChatFormProps) {
