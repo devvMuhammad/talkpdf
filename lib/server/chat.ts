@@ -1,6 +1,6 @@
 import { type ConversationSummary, type ChatDetail } from "@/types/chat"
 
-const DEMO_DELAY_MS = 2000
+const DEMO_DELAY_MS = 100
 async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms))
 }

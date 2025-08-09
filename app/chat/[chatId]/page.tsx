@@ -3,8 +3,9 @@ import { AppHeader } from "@/components/app-header"
 import { ChatForm } from "@/components/chat-form"
 import { getChatById } from "@/lib/server/chat"
 
-export default async function ChatIdPage({ params }: { params: { chatId: string } }) {
-  const chat = await getChatById(params.chatId)
+export default async function ChatIdPage({ params }: { params: Promise<{ chatId: string }> }) {
+  const { chatId } = await params
+  const chat = await getChatById(chatId)
   if (!chat) return notFound()
 
   return (
@@ -14,7 +15,7 @@ export default async function ChatIdPage({ params }: { params: { chatId: string 
         <ChatForm conversationId={chat.id} initialMessages={chat.messages.map((m) => ({
           id: m.id,
           role: m.role,
-          content: m.content,
+          parts: [{ type: "text", text: m.content }],
         }))} />
       </div>
     </>

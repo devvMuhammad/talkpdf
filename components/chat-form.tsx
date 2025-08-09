@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { SparklesIcon, PaperclipIcon, SendHorizontal } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
 
@@ -20,12 +20,26 @@ interface ChatFormProps extends React.ComponentProps<"form"> {
 }
 
 export function ChatForm({ conversationId, onChatStart, initialMessages }: ChatFormProps) {
-  const { messages, input, setInput, append, isLoading } = useChat({
-    api: "/api/chat",
+  // Normalize any legacy messages with `content` into UIMessage `parts`
+  const normalizedInitialMessages = useMemo(() => {
+    if (!initialMessages) return undefined;
+    return initialMessages.map((m: any) => {
+      if (m && Array.isArray(m.parts)) return m as UIMessage;
+      const content = m?.content ?? "";
+      return {
+        id: m?.id ?? Math.random().toString(36).slice(2),
+        role: m?.role,
+        parts: [{ type: "text", text: String(content) }],
+      } as UIMessage;
+    });
+  }, [initialMessages]);
+
+  const { messages, status, sendMessage } = useChat({
     id: conversationId,
-    initialMessages,
+    messages: normalizedInitialMessages,
   });
 
+  const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [generateImages, setGenerateImages] = useState(false);
   const [isChatActive, setIsChatActive] = useState(false);
@@ -37,10 +51,24 @@ export function ChatForm({ conversationId, onChatStart, initialMessages }: ChatF
     }
   }, [messages, isChatActive, onChatStart]);
 
+  const isLoading = status === "submitted" || status === "streaming";
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    append({ content: input, role: "user" });
+    const value = input.trim();
+    if (!value) return;
+    sendMessage(
+      {
+        role: "user",
+        parts: [{ type: "text", text: value }],
+      },
+      {
+        body: {
+          selectedModel,
+          generateImages,
+        },
+      }
+    );
     setInput("");
   };
 
@@ -64,7 +92,7 @@ export function ChatForm({ conversationId, onChatStart, initialMessages }: ChatF
                   data-role={message.role}
                   className="max-w-[85%] rounded-2xl px-4 py-3 text-sm data-[role=assistant]:self-start data-[role=user]:self-end data-[role=assistant]:bg-gray-800 data-[role=user]:bg-blue-600 data-[role=assistant]:text-gray-100 data-[role=user]:text-white border data-[role=assistant]:border-gray-700 data-[role=user]:border-blue-500 shadow-sm"
                 >
-                  {message.content}
+                  {message.parts.map((part) => part.type === "text" ? part.text : part.type).join("")}
                 </div>
               ))}
               {isLoading && (
