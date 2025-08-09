@@ -33,6 +33,26 @@ export const addMessage = mutation({
   },
 });
 
+export const addMessages = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    messages: v.array(v.object({
+      role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
+      content: v.string(),
+      createdAt: v.number(),
+    }))
+  },
+  handler: async (ctx, { conversationId, messages }) => {
+    for (const m of messages) {
+      await ctx.db.insert("messages", {
+        ...m,
+        conversationId,
+      });
+    }
+    return null;
+  }
+})
+
 export const getById = query({
   args: { id: v.id("conversations") },
   handler: async (ctx, { id }) => {

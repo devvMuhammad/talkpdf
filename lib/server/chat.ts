@@ -1,16 +1,25 @@
-import { createConvexClient } from "./convexClient";
-import type { ChatDetail, ConversationSummary } from "@/types/chat";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
+import type { ChatDetail } from "@/types/chat";
+import { fetchQuery } from "convex/nextjs";
 
-export async function getConversations(): Promise<ConversationSummary[]> {
-  const convex = await createConvexClient();
-  // For now, return empty list or basic mapping if needed later
-  return [];
+export async function getConversations() {
+  try {
+    const data = await fetchQuery(api.conversations.getByUserId, { userId: "public" });
+    return data.map((c) => ({
+      id: c._id,
+      title: c.title,
+      timestamp: new Date(c.createdAt).toISOString(),
+      lastMessage: ""
+    }));
+  } catch {
+    return [];
+  }
 }
 
-export async function getChatById(chatId: string): Promise<ChatDetail | null> {
-  const convex = await createConvexClient();
+export async function getChatById(chatId: string) {
   try {
-    const data = await convex.query("conversations:getById", { id: chatId as any });
+    const data = await fetchQuery(api.conversations.getById, { id: chatId as Id<"conversations"> });
     if (!data) return null;
     return {
       id: data.id,
@@ -20,16 +29,6 @@ export async function getChatById(chatId: string): Promise<ChatDetail | null> {
   } catch (e) {
     return null;
   }
-}
-
-export async function createNewChat(): Promise<ChatDetail> {
-  const convex = await createConvexClient();
-  const id: string = await convex.mutation("conversations:create", { title: "New Conversation" } as any);
-  return {
-    id,
-    title: "New Conversation",
-    messages: [],
-  };
 }
 
 

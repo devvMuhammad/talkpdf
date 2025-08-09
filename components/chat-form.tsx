@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { SparklesIcon, PaperclipIcon, SendHorizontal, ChevronDown } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
 import { Doc } from "@/convex/_generated/dataModel";
+import ReactMarkdown from "react-markdown";
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -24,6 +25,7 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     id: conversationId,
     transport: new DefaultChatTransport({
       api: "/api/chat",
+      body: { conversationId },
     }),
     messages: initialMessages,
     onData: (data) => {
@@ -69,20 +71,8 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
 
     measure();
 
-    // Observe input container size changes (textarea auto-resize, etc.)
-    let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined" && inputContainerRef.current) {
-      ro = new ResizeObserver(() => measure());
-      ro.observe(inputContainerRef.current);
-    }
-
-    // Also update on window resize
-    window.addEventListener("resize", measure);
-
     return () => {
       window.clearTimeout(id);
-      if (ro && inputContainerRef.current) ro.unobserve(inputContainerRef.current);
-      window.removeEventListener("resize", measure);
     };
   }, []);
 
@@ -149,8 +139,7 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
         {/* Messages Area */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto px-6 pt-6"
-          style={{ paddingBottom: Math.max(inputHeight + 24, 96) }}
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 pt-6 chat-scroll"
         >
           <div className="flex flex-col gap-6 md:gap-8 mx-auto">
             {messages.map((message, index) => {
@@ -167,7 +156,11 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
                       : "max-w-[75%] self-end rounded-2xl px-4 py-3 text-[15px] leading-6 bg-blue-600 text-white shadow-md"
                   }
                 >
-                  {text}
+                  {isAssistant ? (
+                    <ReactMarkdown>{text}</ReactMarkdown>
+                  ) : (
+                    text
+                  )}
                 </div>
               );
             })}

@@ -1,8 +1,8 @@
-import { convertToModelMessages, ModelMessage, streamText } from "ai"
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { ChatOpenAI } from "@langchain/openai";
+import { convertToModelMessages, ModelMessage, streamText, UIMessage } from "ai"
 import { openai } from "@ai-sdk/openai";
-import { BookDashed } from "lucide-react";
+import { api } from "@/convex/_generated/api";
+import { fetchMutation } from "convex/nextjs";
+import { Id } from "@/convex/_generated/dataModel";
 
 const systemPrompt = `
 You are a highly skilled AI assistant specialized in reading, understanding, and extracting information from PDFs. You can process both text-based and scanned PDFs, interpret charts, tables, images (when possible), and provide clear, well-structured answers. You should maintain accuracy, context awareness, and avoid making assumptions without evidence from the document.`
@@ -13,7 +13,7 @@ You are a highly skilled AI assistant specialized in reading, understanding, and
 // ])
 
 export async function POST(req: Request) {
-  const { messages } = await req.json()
+  const { messages, conversationId } = await req.json() as { messages: UIMessage[], conversationId: Id<"conversations"> }
 
 
   const result = streamText({
@@ -23,5 +23,26 @@ export async function POST(req: Request) {
   })
 
 
-  return result.toUIMessageStreamResponse()
+  return result.toUIMessageStreamResponse({
+    originalMessages: messages,
+    onFinish: async ({ responseMessage }) => {
+      if (!responseMessage) return;
+
+      const userMessage = messages.at(-1)
+
+      const messagesToSave = [userMessage, responseMessage].filter(m => m !== undefined).map(m => ({
+        role: m.role,
+        content: m.parts.map(p => p.type === "text" ? p.text : "").join(""),
+        createdAt: Date.now(),
+      }))
+
+      // save both
+      await fetchMutation(api.conversations.addMessages, {
+        conversationId,
+        messages: messagesToSave,
+      })
+
+
+    }
+  })
 } 
