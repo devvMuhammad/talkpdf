@@ -1,17 +1,10 @@
 "use client"
 
-import { Menu, User } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Menu } from "lucide-react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs"
+import Link from "next/link"
 
 interface AppHeaderProps {
   chatTitle?: string
@@ -35,32 +28,14 @@ export function AppHeader({ chatTitle, isChatActive }: AppHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src="/avatars/01.png" alt="@user" />
-                <AvatarFallback className="bg-gray-800 text-gray-100">
-                  <User size={16} />
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56 bg-gray-900 border-gray-700" align="end" forceMount>
-            <div className="flex items-center justify-start gap-2 p-2">
-              <div className="flex flex-col space-y-1 leading-none">
-                <p className="font-medium text-gray-100">John Doe</p>
-                <p className="w-[200px] truncate text-sm text-gray-400">john.doe@example.com</p>
-              </div>
-            </div>
-            <DropdownMenuSeparator className="bg-gray-700" />
-            <DropdownMenuItem className="text-gray-100 hover:bg-gray-800">Profile Settings</DropdownMenuItem>
-            <DropdownMenuItem className="text-gray-100 hover:bg-gray-800">Billing</DropdownMenuItem>
-            <DropdownMenuItem className="text-gray-100 hover:bg-gray-800">Preferences</DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-gray-700" />
-            <DropdownMenuItem className="text-gray-100 hover:bg-gray-800">Log out</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <SignedIn>
+          <UserButton afterSignOutUrl="/login" />
+        </SignedIn>
+        <SignedOut>
+          <Link href="/login" className="text-sm text-gray-300 hover:text-white">
+            Sign in
+          </Link>
+        </SignedOut>
       </div>
     </header>
   )
