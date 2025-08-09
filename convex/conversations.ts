@@ -4,7 +4,7 @@ import { v } from "convex/values";
 export const create = mutation({
   args: {
     title: v.string(),
-    userId: v.optional(v.string()),
+    userId: v.string(),
   },
   handler: async (ctx, { title, userId }) => {
     const conversationId = await ctx.db.insert("conversations", {
@@ -55,4 +55,10 @@ export const getById = query({
   },
 });
 
-
+export const getByUserId = query({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    const conversations = await ctx.db.query("conversations").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+    return conversations;
+  },
+});

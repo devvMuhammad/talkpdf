@@ -1,16 +1,21 @@
 import { Suspense, type ReactNode } from "react"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { getConversations } from "@/lib/server/chat"
 import { ChatListSkeleton } from "@/components/skeletons/chat-list-skeleton"
+import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 
 export default async function ChatLayout({ children }: { children: ReactNode }) {
-  const conversationsPromise = getConversations()
+  const { userId } = await auth()
+
+  if (!userId) {
+    return redirect("/login");
+  }
 
   return (
     <SidebarProvider defaultOpen={true}>
       <Suspense fallback={<ChatListSkeleton />}>
-        <AppSidebar conversationsPromise={conversationsPromise} />
+        <AppSidebar userId={userId} />
       </Suspense>
       <SidebarInset>{children}</SidebarInset>
     </SidebarProvider>

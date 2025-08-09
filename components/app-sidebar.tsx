@@ -14,14 +14,12 @@ import { ConversationList } from "./conversation-list";
 import { PlanUsage } from "./plan-usage";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ConversationSummary } from "@/types/chat";
-import { use as usePromise } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { ChatListSkeleton } from "./skeletons/chat-list-skeleton";
 
-interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  conversationsPromise: Promise<ConversationSummary[]>;
-}
 
-export function AppSidebar({ conversationsPromise, ...props }: AppSidebarProps) {
+export function AppSidebar({ userId }: { userId: string }) {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const pathname = usePathname();
@@ -30,10 +28,19 @@ export function AppSidebar({ conversationsPromise, ...props }: AppSidebarProps) 
     return match ? decodeURIComponent(match[1]) : undefined;
   }, [pathname]);
 
-  const conversations = usePromise(conversationsPromise);
+  console.log("userId", userId)
+
+  const conversations = useQuery(api.conversations.getByUserId, {
+    userId: userId
+  }) || []
+
+  console.log("conversations", conversations)
+
+  if (!conversations) return <ChatListSkeleton />;
+
 
   return (
-    <Sidebar {...props} className="border-r border-gray-800 bg-gray-950">
+    <Sidebar className="border-r border-gray-800 bg-gray-950">
       <SidebarHeader>
         <div className="flex items-center justify-between p-3">
           {!isCollapsed && (

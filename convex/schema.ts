@@ -13,7 +13,7 @@ export default defineSchema({
 
   conversations: defineTable({
     title: v.string(),
-    userId: v.optional(v.string()),
+    userId: v.string(),
     createdAt: v.number(),
   }).index("by_user", ["userId", "createdAt"]),
 
