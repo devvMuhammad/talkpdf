@@ -39,7 +39,7 @@ export default function SettingsLayout({
               Manage your account settings and preferences.
             </p>
           </div>
-          <div className="flex">
+          <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-4">
             <SettingsSidebar />
             <div className="flex-1">{children}</div>
           </div>

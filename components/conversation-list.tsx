@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MoreHorizontal, MessageSquare, Trash2 } from "lucide-react";
+import { MessageSquare, Trash2 } from "lucide-react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -26,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function formatRelative(ts: number): string {
   const diff = Date.now() - ts;
@@ -48,7 +49,7 @@ function formatRelative(ts: number): string {
 interface ConversationListProps {
   isCollapsed: boolean;
   activeConversationId?: string;
-  conversations: Doc<"conversations">[]
+  conversations: Doc<"conversations">[] | undefined
 }
 
 export function ConversationList({
@@ -58,6 +59,40 @@ export function ConversationList({
 }: ConversationListProps) {
   const deleteConversation = useMutation(api.conversations.remove);
   const [pendingDelete, setPendingDelete] = useState<Id<"conversations"> | null>(null);
+
+  if (!conversations)
+    return (
+      <SidebarGroup>
+        {!isCollapsed && (
+          <SidebarGroupLabel className="text-gray-400 text-xs uppercase tracking-wider font-medium px-3 py-2">
+            Recent Conversations
+          </SidebarGroupLabel>
+        )}
+        <SidebarGroupContent className="px-2">
+          <SidebarMenu className="space-y-1">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <SidebarMenuItem key={idx}>
+                <div className="group relative block h-auto p-3 rounded-lg border border-transparent hover:border-gray-800 transition-all duration-200 w-full">
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="w-2 h-2 rounded-full mt-2 bg-gray-700" />
+                    {!isCollapsed && (
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Skeleton className="h-4 w-40 bg-gray-800" />
+                          <Skeleton className="h-3 w-10 bg-gray-800" />
+                        </div>
+                        <Skeleton className="h-3 w-full bg-gray-800" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+
   return (
     <SidebarGroup>
       {!isCollapsed && (
