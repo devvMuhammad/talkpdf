@@ -11,35 +11,29 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 
 import { Button } from "@/components/ui/button";
 import { AutoResizeTextarea } from "@/components/autoresize-textarea";
-import { WelcomeStage } from "./welcome-stage";
 
 interface ChatFormProps extends React.ComponentProps<"form"> {
   conversationId?: string;
-  onChatStart?: () => void;
   initialMessages?: UIMessage[];
 }
 
-export function ChatForm({ conversationId, onChatStart, }: ChatFormProps) {
-
-  const { messages, status, sendMessage } = useChat<UIMessage>({
+export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
+  const { messages, status, sendMessage, setMessages } = useChat({
     id: conversationId,
-    messages: [],
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
   });
 
+  useEffect(() => {
+    if (initialMessages) {
+      setMessages(initialMessages);
+    }
+  }, [initialMessages, setMessages]);
+
   const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [generateImages, setGenerateImages] = useState(false);
-  const [isChatActive, setIsChatActive] = useState(false);
-
-  useEffect(() => {
-    if (messages.length > 0 && !isChatActive) {
-      setIsChatActive(true);
-      onChatStart?.();
-    }
-  }, [messages, isChatActive, onChatStart]);
 
   const isLoading = status === "submitted" || status === "streaming";
 
@@ -47,7 +41,7 @@ export function ChatForm({ conversationId, onChatStart, }: ChatFormProps) {
     e.preventDefault();
     const value = input.trim();
     if (!value) return;
-    sendMessage({ text: value })
+    sendMessage({ text: value });
     setInput("");
   };
 
@@ -58,7 +52,7 @@ export function ChatForm({ conversationId, onChatStart, }: ChatFormProps) {
     }
   };
 
-  const ActiveChatStage = (
+  return (
     <div className="flex h-full max-h-full flex-col">
       <div className="flex-1 flex justify-center">
         <div className="w-full max-w-4xl mx-auto flex flex-col h-full">
@@ -71,7 +65,9 @@ export function ChatForm({ conversationId, onChatStart, }: ChatFormProps) {
                   data-role={message.role}
                   className="max-w-[85%] rounded-2xl px-4 py-3 text-sm data-[role=assistant]:self-start data-[role=user]:self-end data-[role=assistant]:bg-gray-800 data-[role=user]:bg-blue-600 data-[role=assistant]:text-gray-100 data-[role=user]:text-white border data-[role=assistant]:border-gray-700 data-[role=user]:border-blue-500 shadow-sm"
                 >
-                  {message.parts.map((part) => part.type === "text" ? part.text : part.type).join("")}
+                  {message.parts
+                    .map((part) => (part.type === "text" ? part.text : part.type))
+                    .join("")}
                 </div>
               ))}
               {isLoading && (
@@ -139,20 +135,6 @@ export function ChatForm({ conversationId, onChatStart, }: ChatFormProps) {
           </div>
         </div>
       </div>
-    </div>
-  );
-
-  return (
-    <div className="h-full transition-all duration-500 ease-in-out">
-      {!isChatActive ? (
-        <WelcomeStage
-          handleSubmit={handleSubmit}
-          setInput={setInput}
-          input={input}
-        />
-      ) : (
-        ActiveChatStage
-      )}
     </div>
   );
 }
