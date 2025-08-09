@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { SparklesIcon, PaperclipIcon, SendHorizontal } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
 
@@ -36,7 +36,28 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [generateImages, setGenerateImages] = useState(false);
 
-  const isLoading = status === "submitted" || status === "streaming";
+  const isLoading = status === "submitted";
+
+  // Keep a ref to the scrollable container so we can auto-scroll to bottom
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  };
+
+  // On mount, scroll to the bottom smoothly
+  useEffect(() => {
+    // small delay ensures layout has settled
+    const id = window.setTimeout(scrollToBottom, 50);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  // Also scroll whenever messages or streaming status changes
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, status]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -58,19 +79,28 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
       <div className="flex-1 flex justify-center">
         <div className="w-full max-w-4xl mx-auto flex flex-col h-full">
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            <div className="flex flex-col gap-4 max-w-3xl mx-auto">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  data-role={message.role}
-                  className="max-w-[85%] rounded-2xl px-4 py-3 text-sm data-[role=assistant]:self-start data-[role=user]:self-end data-[role=assistant]:bg-gray-800 data-[role=user]:bg-blue-600 data-[role=assistant]:text-gray-100 data-[role=user]:text-white border data-[role=assistant]:border-gray-700 data-[role=user]:border-blue-500 shadow-sm"
-                >
-                  {message.parts.map((part) => part.type === "text" ? part.text : "").join("")}
-                </div>
-              ))}
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="flex flex-col gap-6 md:gap-8 max-w-3xl mx-auto">
+              {messages.map((message, index) => {
+                const text = message.parts
+                  .map((part) => (part.type === "text" ? part.text : ""))
+                  .join("");
+                const isAssistant = message.role === "assistant";
+                return (
+                  <div
+                    key={index}
+                    className={
+                      isAssistant
+                        ? "w-full whitespace-pre-wrap text-[15px] leading-7 text-gray-200 tracking-[-0.01em]"
+                        : "max-w-[75%] self-end rounded-2xl px-4 py-3 text-[15px] leading-6 bg-blue-600 text-white shadow-md"
+                    }
+                  >
+                    {text}
+                  </div>
+                );
+              })}
               {isLoading && (
-                <div className="self-start flex items-center gap-2 px-4 py-3">
+                <div className="self-start flex items-center gap-2 px-1 py-1 text-gray-400">
                   <div className="flex gap-1">
                     <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse" />
                     <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-75" />
@@ -83,11 +113,11 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
           </div>
 
           {/* Input Area */}
-          <div className="px-6 pb-6">
+          <div className="px-6 pb-6 pt-3 md:pt-4">
             <div className="max-w-3xl mx-auto">
               <form
                 onSubmit={handleSubmit}
-                className="rounded-2xl border border-gray-700 bg-gray-900 overflow-hidden shadow-lg"
+                className="mt-3 sm:mt-4 rounded-2xl border border-gray-700 bg-gray-900 overflow-hidden shadow-lg"
               >
                 <AutoResizeTextarea
                   onKeyDown={handleKeyDown}
