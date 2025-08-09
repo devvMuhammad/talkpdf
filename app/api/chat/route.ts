@@ -25,6 +25,10 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
+    onError(error) {
+      console.error("ERROR WHILE STREAMING LOL", error)
+      return error instanceof Error ? error.message : "An error occurred"
+    },
     onFinish: async ({ responseMessage }) => {
       if (!responseMessage) return;
 
@@ -41,8 +45,6 @@ export async function POST(req: Request) {
         conversationId,
         messages: messagesToSave,
       })
-
-
     }
   })
 } 

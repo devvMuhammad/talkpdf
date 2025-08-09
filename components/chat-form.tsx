@@ -2,17 +2,24 @@
 
 import type React from "react";
 
-import { useState, useEffect, useRef } from "react";
-import { SparklesIcon, PaperclipIcon, SendHorizontal, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { SparklesIcon, PaperclipIcon, SendHorizontal, ChevronDown, Download } from "lucide-react";
 import { ModelSelector } from "@/components/model-selector";
-import { Doc } from "@/convex/_generated/dataModel";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 
 import { Button } from "@/components/ui/button";
 import { AutoResizeTextarea } from "@/components/autoresize-textarea";
+import { api } from "@/convex/_generated/api";
+import { useQuery } from "convex/react";
+import { toast } from "sonner";
+import { MemoizedMarkdown } from "./memoized-markdown";
 
 interface ChatFormProps extends React.ComponentProps<"form"> {
   conversationId?: string;
@@ -33,6 +40,11 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     },
     onFinish: (message) => {
       console.log("FINISH", message)
+    },
+    onError: (error) => {
+
+      console.error("ERROR", error)
+      toast.error(error.message || "An error occurred")
     }
   });
 
@@ -56,6 +68,21 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   };
 
+  // Fetch signed download URLs for files
+  const fileIds = useMemo(() => (files && files.length > 0 ? files.map((f) => f._id as Id<"files">) : []), [files]);
+  const downloadArgs = useMemo(() => (fileIds.length > 0 ? { fileIds } : "skip" as const), [fileIds]);
+  const downloadInfo = useQuery(api.files.getDownloadUrls, downloadArgs);
+
+  const fileIdToUrl = useMemo(() => {
+    const map = new Map<string, string>();
+    if (downloadInfo) {
+      for (const d of downloadInfo as any[]) {
+        map.set(String(d.fileId), d.url);
+      }
+    }
+    return map;
+  }, [downloadInfo]);
+
   // On mount, scroll to the bottom smoothly and initialize input height
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -76,29 +103,22 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     };
   }, []);
 
-  // Auto-scroll on new messages only if already at bottom
-  useEffect(() => {
-    if (isAtBottomRef.current) {
-      scrollToBottom();
-    }
-  }, [messages, status]);
-
-  // Track whether user is at the bottom of the list
-  useEffect(() => {
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    const threshold = 24;
-    const onScroll = () => {
-      const atBottomNow = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
-      setIsAtBottom(atBottomNow);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    // Initialize state
-    onScroll();
-    return () => {
-      el.removeEventListener("scroll", onScroll as EventListener);
-    };
-  }, []);
+  // // Track whether user is at the bottom of the list
+  // useEffect(() => {
+  //   const el = messagesContainerRef.current;
+  //   if (!el) return;
+  //   const threshold = 24;
+  //   const onScroll = () => {
+  //     const atBottomNow = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
+  //     setIsAtBottom(atBottomNow);
+  //   };
+  //   el.addEventListener("scroll", onScroll, { passive: true });
+  //   // Initialize state
+  //   onScroll();
+  //   return () => {
+  //     el.removeEventListener("scroll", onScroll as EventListener);
+  //   };
+  // }, []);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -123,12 +143,26 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
             <div className="text-xs text-gray-400 mb-3">Uploaded files</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {files.map((f: any) => (
-                <div key={f._id} className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2">
-                  <div className="w-8 h-8 rounded-md bg-blue-600/20 border border-blue-700/30 flex items-center justify-center text-blue-300 text-xs">PDF</div>
-                  <div className="min-w-0">
-                    <div className="text-sm text-gray-100 truncate">{f.name}</div>
-                    <div className="text-xs text-gray-500">{(f.size / (1024 * 1024)).toFixed(2)} MB</div>
+                <div key={f._id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-md bg-blue-600/20 border border-blue-700/30 flex items-center justify-center text-blue-300 text-xs">PDF</div>
+                    <div className="min-w-0">
+                      <div className="text-sm text-gray-100 truncate">{f.name}</div>
+                      <div className="text-xs text-gray-500">{(f.size / (1024 * 1024)).toFixed(2)} MB</div>
+                    </div>
                   </div>
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 px-2 text-gray-300 hover:text-gray-100 hover:bg-gray-800"
+                    disabled={!fileIdToUrl.get(String(f._id))}
+                    title={fileIdToUrl.get(String(f._id)) ? "Download" : "Preparing link..."}
+                  >
+                    <a href={fileIdToUrl.get(String(f._id)) || undefined} download>
+                      <Download className="h-4 w-4" />
+                    </a>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -141,7 +175,7 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
           ref={messagesContainerRef}
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 pt-6 chat-scroll"
         >
-          <div className="flex flex-col gap-6 md:gap-8 mx-auto">
+          <div className="flex flex-col gap-4 md:gap-6 mx-auto">
             {messages.map((message, index) => {
               const text = message.parts
                 .map((part) => (part.type === "text" ? part.text : ""))
@@ -152,12 +186,12 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
                   key={index}
                   className={
                     isAssistant
-                      ? "w-full whitespace-pre-wrap text-[15px] leading-7 text-gray-200 tracking-[-0.01em]"
+                      ? "w-full whitespace-pre-wrap text-[15px] leading-6 text-gray-200 tracking-[-0.01em]"
                       : "max-w-[75%] self-end rounded-2xl px-4 py-3 text-[15px] leading-6 bg-blue-600 text-white shadow-md"
                   }
                 >
                   {isAssistant ? (
-                    <ReactMarkdown>{text}</ReactMarkdown>
+                    <MemoizedMarkdown content={text} />
                   ) : (
                     text
                   )}
@@ -176,31 +210,29 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
             )}
           </div>
         </div>
-        {/* Floating Scroll-to-bottom Button */}
-        {!isAtBottom && (
-          <div
-            className="fixed right-6 z-30"
-            style={{ bottom: Math.max(inputHeight + 16, 96) }}
-          >
-            <Button
-              onClick={scrollToBottom}
-              className="shadow-lg bg-gray-800 text-gray-100 hover:bg-gray-700 border border-gray-700"
-              size="sm"
-            >
-              <ChevronDown className="mr-1 h-4 w-4" />
-              Scroll to bottom
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Fixed Input Area */}
       <div ref={inputContainerRef} className="px-6 pt-3 md:pt-4 shrink-0">
         <div className="max-w-4xl mx-auto">
+          {!isAtBottom && (
+            <div className="flex justify-center px-4 pt-3">
+              <Button
+                onClick={scrollToBottom}
+                className="bg-gray-800 text-gray-100 hover:bg-gray-700 border border-gray-700"
+                size="sm"
+                type="button"
+              >
+                <ChevronDown className="mr-1 h-4 w-4" />
+                Scroll to bottom
+              </Button>
+            </div>
+          )}
           <form
             onSubmit={handleSubmit}
             className="mt-3 sm:mt-4 rounded-2xl border border-gray-700 bg-gray-900 overflow-hidden shadow-lg"
           >
+            {/* Scroll-to-bottom above the textarea */}
             <AutoResizeTextarea
               onKeyDown={handleKeyDown}
               onChange={(v) => setInput(v)}
