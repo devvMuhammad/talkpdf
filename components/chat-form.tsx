@@ -35,8 +35,10 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     transport: new DefaultChatTransport({
       api: "/api/chat",
       body: { conversationId },
+
     }),
     messages: initialMessages,
+    experimental_throttle: 100,
     onData: (data) => {
       console.log("DATA", data)
     },
@@ -212,7 +214,7 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
                   }
                 >
                   {isAssistant ? (
-                    <MemoizedMarkdown content={text} />
+                    <MemoizedMarkdown content={text} id={message.id} />
                   ) : (
                     text
                   )}
