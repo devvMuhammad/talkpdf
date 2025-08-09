@@ -8,8 +8,11 @@ export default defineSchema({
     type: v.string(),
     storageId: v.id("_storage"),
     userId: v.optional(v.string()),
+    conversationId: v.optional(v.id("conversations")),
     createdAt: v.number(),
-  }).index("by_user", ["userId", "createdAt"]),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_conversation", ["conversationId", "createdAt"]),
 
   conversations: defineTable({
     title: v.string(),

@@ -13,6 +13,24 @@ import {
 import { cn } from "@/lib/utils";
 import { Doc } from "@/convex/_generated/dataModel";
 
+function formatRelative(ts: number): string {
+  const diff = Date.now() - ts;
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return "now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}d`;
+  const wk = Math.floor(day / 7);
+  if (wk < 4) return `${wk}w`;
+  const mo = Math.floor(day / 30);
+  if (mo < 12) return `${mo}mo`;
+  const yr = Math.floor(day / 365);
+  return `${yr}y`;
+}
+
 interface ConversationListProps {
   isCollapsed: boolean;
   activeConversationId?: string;
@@ -68,7 +86,7 @@ export function ConversationList({
                             {conversation.title}
                           </h3>
                           <span className="text-xs text-gray-400 flex-shrink-0">
-                            {conversation.createdAt}
+                            {formatRelative(conversation.createdAt)}
                           </span>
                         </div>
                         <p className="text-xs text-gray-500 truncate">

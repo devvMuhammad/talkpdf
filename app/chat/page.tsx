@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { UploadCloud, FileText, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TinyLoader } from "@/components/ui/tiny-loader";
+import { toast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -18,6 +19,7 @@ function WelcomeStage() {
   const indexFiles = useAction(api.indexing.indexFiles)
   const createConversation = useMutation(api.conversations.create)
   const addMessage = useMutation(api.conversations.addMessage)
+  const attachToConversation = useMutation(api.files.attachToConversation)
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -96,10 +98,12 @@ function WelcomeStage() {
       }
 
       setUploadSuccess(`Uploaded ${savedFileIds.length} file(s) successfully`);
+      toast({ title: "Upload complete", description: `${savedFileIds.length} file(s) uploaded.` });
 
       // Optional: simple indexing step without SSE, just a loading state
       setIsIndexing(true);
       await indexFiles({ fileIds: savedFileIds as Id<"files">[] });
+      toast({ title: "Indexing complete", description: `Your PDFs are ready.` });
 
       // Create conversation and redirect
       const assistantMessage = "Your PDFs are uploaded and indexed. How can I help you explore them today?";
@@ -107,11 +111,14 @@ function WelcomeStage() {
         title: selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} PDFs`,
         userId: session.user.id
       });
+      // Attach uploaded files to this conversation for later display in chat view
+      await attachToConversation({ conversationId, fileIds: savedFileIds as Id<"files">[] });
       await addMessage({ conversationId, role: "assistant", content: assistantMessage });
       router.replace(`/chat/${conversationId}`);
     } catch (err) {
       console.error(err);
       setUploadSuccess("Upload failed. Please try again.");
+      toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
     } finally {
       setIsUploading(false);
       setIsIndexing(false);

@@ -17,6 +17,7 @@ export const saveFile = mutation({
     size: v.number(),
     type: v.string(),
     userId: v.optional(v.string()),
+    conversationId: v.optional(v.id("conversations")),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -26,6 +27,7 @@ export const saveFile = mutation({
       type: args.type,
       storageId: args.storageId,
       userId: args.userId,
+      conversationId: args.conversationId,
       createdAt: now,
     });
     return fileId;
@@ -63,6 +65,29 @@ export const getById = query({
   args: { id: v.id("files") },
   handler: async (ctx, { id }) => {
     return await ctx.db.get(id);
+  },
+});
+
+export const listByConversation = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, { conversationId }) => {
+    const files = await ctx.db
+      .query("files")
+      .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
+      .collect();
+    return files;
+  },
+});
+
+export const attachToConversation = mutation({
+  args: { conversationId: v.id("conversations"), fileIds: v.array(v.id("files")) },
+  handler: async (ctx, { conversationId, fileIds }) => {
+    for (const id of fileIds) {
+      const file = await ctx.db.get(id);
+      if (!file) continue;
+      await ctx.db.patch(id, { conversationId });
+    }
+    return { attached: fileIds.length };
   },
 });
 
