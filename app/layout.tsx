@@ -18,9 +18,11 @@ export default function Layout({ children }: { children: ReactNode }) {
     <ClerkProvider signInUrl="/login" signUpUrl="/login" afterSignOutUrl="/login">
       <html lang="en">
         <body className={cn("flex min-h-svh flex-col antialiased bg-gray-950 text-gray-100", inter.className)}>
-          <ThemeProvider defaultTheme="dark" storageKey="chatbot-theme">
-            <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
-          </ThemeProvider>
+          <ConvexClientProvider>
+            <ThemeProvider defaultTheme="dark" storageKey="chatbot-theme">
+              <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
+            </ThemeProvider>
+          </ConvexClientProvider>
         </body>
       </html>
     </ClerkProvider>
@@ -30,3 +32,4 @@ export default function Layout({ children }: { children: ReactNode }) {
 
 
 import './globals.css'
+import { ConvexClientProvider } from "./context/convex-provider"

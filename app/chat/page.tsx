@@ -3,12 +3,14 @@
 import type React from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AppHeader } from "@/components/app-header";
-import { ChatForm } from "@/components/chat-form";
 import { useChat } from "@ai-sdk/react";
 import { UploadCloud, FileText, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AutoResizeTextarea } from "@/components/autoresize-textarea";
-
+import { TinyLoader } from "@/components/ui/tiny-loader";
+import { useRouter } from "next/navigation";
+import { useAction, useConvex, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 interface WelcomeStageProps {
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   setInput: (value: string) => void;
@@ -20,11 +22,22 @@ function WelcomeStage({
   setInput,
   input,
 }: WelcomeStageProps) {
+
+  const saveFile = useMutation(api.files.saveFile)
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl)
+  const indexFiles = useAction(api.indexing.indexFiles)
+  const createConversation = useMutation(api.conversations.create)
+  const addMessage = useMutation(api.conversations.addMessage)
+
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+
+  const [isIndexing, setIsIndexing] = useState(false);
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const onFilesChosen = (files: FileList | null) => {
     if (!files) return;
@@ -63,18 +76,49 @@ function WelcomeStage({
   const uploadFiles = useCallback(async () => {
     if (!selectedFiles.length) return;
     setIsUploading(true);
+    setIsIndexing(false);
+
     setUploadSuccess(null);
     try {
-      const form = new FormData();
-      selectedFiles.forEach((f) => form.append("files", f));
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
-      setUploadSuccess(`Uploaded ${data.uploaded} file(s) successfully`);
+      // Step 1-3 per Convex docs for each file
+      const savedFileIds: string[] = [];
+      for (const file of selectedFiles) {
+        const postUrl = await generateUploadUrl();
+        const result = await fetch(postUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!result.ok) throw new Error("Failed to upload to Convex storage");
+        const { storageId } = await result.json();
+        const fileId = await saveFile({
+          storageId,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        } as any);
+        savedFileIds.push(fileId as unknown as string);
+      }
+
+      setUploadSuccess(`Uploaded ${savedFileIds.length} file(s) successfully`);
+
+      // Optional: simple indexing step without SSE, just a loading state
+      setIsIndexing(true);
+      await indexFiles({ fileIds: savedFileIds } as any);
+
+      // Create conversation and redirect
+      const assistantMessage = "Your PDFs are uploaded and indexed. How can I help you explore them today?";
+      const conversationId = await createConversation({
+        title: selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} PDFs`,
+      } as any);
+      await addMessage({ conversationId, role: "assistant", content: assistantMessage } as any);
+      router.replace(`/chat/${conversationId}`);
     } catch (err) {
+      console.error(err);
       setUploadSuccess("Upload failed. Please try again.");
     } finally {
       setIsUploading(false);
+      setIsIndexing(false);
     }
   }, [selectedFiles]);
 
@@ -173,6 +217,12 @@ function WelcomeStage({
                   </li>
                 ))}
               </ul>
+
+              {(isUploading || isIndexing) && (
+                <div className="mt-4">
+                  <TinyLoader label={isUploading ? "Uploading..." : "Indexing..."} />
+                </div>
+              )}
 
               <div className="mt-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-gray-400">
