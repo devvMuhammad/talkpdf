@@ -38,7 +38,7 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
 
     }),
     messages: initialMessages,
-    experimental_throttle: 100,
+    experimental_throttle: 50,
     onData: (data) => {
       console.log("DATA", data)
     },
