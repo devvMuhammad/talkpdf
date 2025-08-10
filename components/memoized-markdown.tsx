@@ -16,12 +16,13 @@ const components: Options["components"] = {
     <h3 className="text-base font-semibold text-gray-100 mt-2" {...props} />
   ),
   p: ({ node, ...props }) => <p className="mb-3" {...props} />,
-  ul: ({ node, ...props }) => <ul className="list-disc pl-5" {...props} />,
-  ol: ({ node, ...props }) => <ol className="list-decimal pl-5" {...props} />,
+  ul: ({ node, ...props }) => <ul className="list-disc pl-3 space-y-1" {...props} />,
+  ol: ({ node, ...props }) => <ol className="list-decimal pl-3" {...props} />,
   li: ({ node, ...props }) => <li {...props} />,
   a: ({ node, ...props }) => (
     <a className="text-blue-400 hover:underline" target="_blank" rel="noreferrer" {...props} />
   ),
+  hr: () => <hr className="my-4" />,
   code({ node, inline, className, children, ...props }: any) {
     const match = /language-(\w+)/.exec(className || '')
 
@@ -29,7 +30,6 @@ const components: Options["components"] = {
       return (
         <SyntaxHighlighter
           style={vscDarkPlus}
-          chi
           language={match ? match[1] : undefined}
           PreTag="div"
           customStyle={{
@@ -77,14 +77,16 @@ MemoizedMarkdownBlock.displayName = 'MemoizedMarkdownBlock';
 export const MemoizedMarkdown = memo(
   ({ content, id }: { content: string; id?: string }) => {
     const messageId = id || 'message';
-    const index = 0;
+    const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
 
     return (
       <div>
-        <MemoizedMarkdownBlock
-          content={content}
-          key={`${messageId}-block_${index}`}
-        />
+        {blocks.map((block, index) => (
+          <MemoizedMarkdownBlock
+            content={block}
+            key={`${messageId}-block_${index}`}
+          />
+        ))}
       </div>
     );
   },
