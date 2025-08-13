@@ -4,6 +4,9 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters"
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { OpenAIEmbeddings } from "@langchain/openai"
 import { Pinecone } from '@pinecone-database/pinecone'
+import { api } from "@/convex/_generated/api"
+import { fetchMutation, fetchQuery } from "convex/nextjs"
+import { countTokens } from "@/lib/token-counter"
 
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
@@ -42,6 +45,18 @@ export async function POST(request: NextRequest) {
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 })
+    }
+
+    // Check user's billing status
+    const billing = await fetchQuery(api.billing.getUserBilling, { userId });
+    if (!billing) {
+      // Initialize billing for new users
+      await fetchMutation(api.billing.initializeUserBilling, { userId });
+    }
+
+    const currentBilling = billing || await fetchQuery(api.billing.getUserBilling, { userId });
+    if (!currentBilling) {
+      return NextResponse.json({ error: "Failed to check token limits" }, { status: 500 });
     }
 
     const indexName = process.env.PINECONE_INDEX_NAME!

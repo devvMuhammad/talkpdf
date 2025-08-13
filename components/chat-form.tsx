@@ -26,7 +26,7 @@ import { FileAttachmentCards } from "@/components/ui/file-attachment-cards";
 
 interface ChatFormProps extends React.ComponentProps<"form"> {
   conversationId?: string;
-  initialMessages?: UIMessage[];
+  initialMessages: any[] | null;
   files?: Doc<"files">[];
 }
 
@@ -36,9 +36,8 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     transport: new DefaultChatTransport({
       api: "/api/chat",
       body: { conversationId },
-
     }),
-    messages: initialMessages,
+    messages: initialMessages as UIMessage[],
     experimental_throttle: 50,
     onData: (data) => {
       console.log("DATA", data)
@@ -153,31 +152,31 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
           <div className="flex flex-col gap-4 md:gap-6 mx-auto">
             {messages.map((message, index) => {
               const isAssistant = message.role === "assistant";
-              
+
               // Separate text parts and file parts
               const textParts = message.parts.filter(part => part.type === "text");
               const fileParts = message.parts.filter(part => part.type === "file");
               const textContent = textParts.map(part => part.text).join("");
-              
+
               return (
                 <div key={index} className={`w-full flex ${isAssistant ? "justify-start" : "justify-end"}`}>
                   <div className={isAssistant ? "w-full" : "max-w-[75%]"}>
                     {/* File attachments above the message bubble */}
                     {fileParts.length > 0 && (
                       <div className="mb-2">
-                        <FileAttachmentCards 
-                          files={fileParts} 
+                        <FileAttachmentCards
+                          files={fileParts}
                           className={isAssistant ? "" : "justify-end"}
                         />
                       </div>
                     )}
-                    
+
                     {/* Message bubble */}
                     {textContent.trim() && (
                       <div
                         className={
                           isAssistant
-                            ? "w-full whitespace-pre-wrap text-[15px] leading-6 text-gray-200 tracking-[-0.01em]"
+                            ? "w-full whitespace-normal text-[15px] leading-6 text-gray-200 tracking-[-0.01em]"
                             : "rounded-2xl px-4 py-3 text-[15px] leading-6 bg-blue-600 text-white shadow-md"
                         }
                       >
