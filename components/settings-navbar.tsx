@@ -17,14 +17,6 @@ export function SettingsNavbar() {
           <span className="font-bold text-xl">TalkPDF</span>
         </Link>
 
-        {/* Chat Link */}
-        <Link
-          href="/chat"
-          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Chat
-        </Link>
-
         {/* Profile */}
         <SignedIn>
           <UserButton afterSignOutUrl="/login" />
