@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Construction, Settings } from "lucide-react";
 
 export default function ModelsPage() {
   return (
@@ -21,67 +22,20 @@ export default function ModelsPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">OpenAI</h3>
-          <div className="space-y-2">
-            <Label htmlFor="openai-key">API Key</Label>
-            <Input
-              id="openai-key"
-              type="password"
-              placeholder="Enter your OpenAI API key"
-            />
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="mb-4 rounded-full bg-muted p-4">
+            <Construction className="h-8 w-8 text-muted-foreground" />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="openai-instructions">System Instructions</Label>
-            <Textarea
-              id="openai-instructions"
-              placeholder="You are a helpful assistant."
-              className="min-h-[100px]"
-            />
-          </div>
-        </div>
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Google Gemini</h3>
-          <div className="space-y-2">
-            <Label htmlFor="gemini-key">API Key</Label>
-            <Input
-              id="gemini-key"
-              type="password"
-              placeholder="Enter your Google Gemini API key"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="gemini-instructions">System Instructions</Label>
-            <Textarea
-              id="gemini-instructions"
-              placeholder="You are a helpful assistant."
-              className="min-h-[100px]"
-            />
-          </div>
-        </div>
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Anthropic Claude</h3>
-          <div className="space-y-2">
-            <Label htmlFor="claude-key">API Key</Label>
-            <Input
-              id="claude-key"
-              type="password"
-              placeholder="Enter your Anthropic Claude API key"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="claude-instructions">System Instructions</Label>
-            <Textarea
-              id="claude-instructions"
-              placeholder="You are a helpful assistant."
-              className="min-h-[100px]"
-            />
+          <h3 className="mb-2 text-lg font-semibold">Feature in Development</h3>
+          <p className="mb-4 max-w-md text-sm text-muted-foreground">
+            The models management feature is currently being developed. You'll be able to configure API keys and system instructions for your AI models soon.
+          </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Settings className="h-3 w-3" />
+            <span>Coming soon</span>
           </div>
         </div>
       </CardContent>
-      <CardFooter>
-        <Button>Save Settings</Button>
-      </CardFooter>
     </Card>
   );
 }
