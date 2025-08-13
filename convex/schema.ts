@@ -23,7 +23,15 @@ export default defineSchema({
   messages: defineTable({
     conversationId: v.id("conversations"),
     role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
-    content: v.string(),
+    parts: v.array(
+      v.object({
+        type: v.string(),
+        text: v.optional(v.string()),
+        mediaType: v.optional(v.string()),
+        filename: v.optional(v.string()),
+        url: v.optional(v.string()),
+      })
+    ),
     createdAt: v.number(),
   }).index("by_convo", ["conversationId", "createdAt"]),
 });

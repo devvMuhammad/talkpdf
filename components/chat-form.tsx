@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { FileAttachmentCards } from "@/components/ui/file-attachment-cards";
 
 interface ChatFormProps extends React.ComponentProps<"form"> {
   conversationId?: string;
@@ -151,24 +152,43 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
         >
           <div className="flex flex-col gap-4 md:gap-6 mx-auto">
             {messages.map((message, index) => {
-              const text = message.parts
-                .map((part) => (part.type === "text" ? part.text : ""))
-                .join("");
               const isAssistant = message.role === "assistant";
+              
+              // Separate text parts and file parts
+              const textParts = message.parts.filter(part => part.type === "text");
+              const fileParts = message.parts.filter(part => part.type === "file");
+              const textContent = textParts.map(part => part.text).join("");
+              
               return (
-                <div
-                  key={index}
-                  className={
-                    isAssistant
-                      ? "w-full whitespace-pre-wrap text-[15px] leading-6 text-gray-200 tracking-[-0.01em]"
-                      : "max-w-[75%] self-end rounded-2xl px-4 py-3 text-[15px] leading-6 bg-blue-600 text-white shadow-md"
-                  }
-                >
-                  {isAssistant ? (
-                    <MemoizedMarkdown content={text} id={message.id} />
-                  ) : (
-                    text
-                  )}
+                <div key={index} className={`w-full flex ${isAssistant ? "justify-start" : "justify-end"}`}>
+                  <div className={isAssistant ? "w-full" : "max-w-[75%]"}>
+                    {/* File attachments above the message bubble */}
+                    {fileParts.length > 0 && (
+                      <div className="mb-2">
+                        <FileAttachmentCards 
+                          files={fileParts} 
+                          className={isAssistant ? "" : "justify-end"}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Message bubble */}
+                    {textContent.trim() && (
+                      <div
+                        className={
+                          isAssistant
+                            ? "w-full whitespace-pre-wrap text-[15px] leading-6 text-gray-200 tracking-[-0.01em]"
+                            : "rounded-2xl px-4 py-3 text-[15px] leading-6 bg-blue-600 text-white shadow-md"
+                        }
+                      >
+                        {isAssistant ? (
+                          <MemoizedMarkdown content={textContent} id={message.id} />
+                        ) : (
+                          textContent
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

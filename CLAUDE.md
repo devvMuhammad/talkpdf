@@ -230,6 +230,73 @@ Each user's documents are stored in a separate Pinecone namespace:
 4. **File Preview**: Add PDF preview capabilities
 5. **Advanced Chunking**: Implement content-aware chunking strategies
 
+## Message Rendering System
+
+### Overview
+
+The TalkPDF application uses the AI SDK v5's UIMessage structure to handle rich message content with multiple parts (text, files, etc.). This approach provides a clean, type-safe way to render different content types.
+
+### Message Structure
+
+Messages follow the UIMessage interface:
+```typescript
+interface UIMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  parts: Array<{
+    type: string;
+    text?: string;
+    mediaType?: string;
+    filename?: string;
+    url?: string;
+  }>;
+}
+```
+
+### Database Schema
+
+The Convex schema matches the UIMessage structure:
+```typescript
+messages: defineTable({
+  conversationId: v.id("conversations"),
+  role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
+  parts: v.array(
+    v.object({
+      type: v.string(),
+      text: v.optional(v.string()),
+      mediaType: v.optional(v.string()),
+      filename: v.optional(v.string()),
+      url: v.optional(v.string()),
+    })
+  ),
+  createdAt: v.number(),
+})
+```
+
+### Message Rendering Logic
+
+The `ChatForm` component renders messages by looping through parts:
+
+1. **Part Separation**: Filter parts by type (text vs file)
+2. **File Rendering**: Show file parts as cards above the message bubble
+3. **Text Rendering**: Show text parts within the message bubble
+4. **Layout**: User messages on the right, assistant messages on the left
+
+### Key Benefits
+
+- **Type Safety**: Full TypeScript support without `any` types
+- **Maintainable**: Simple part-based rendering logic
+- **Extensible**: Easy to add new part types (images, tools, etc.)
+- **Clean**: No complex JSON parsing or content manipulation
+
+### File Attachments
+
+File parts are rendered using the `FileAttachmentCards` component:
+- PDF files: Show with red PDF icon and filename
+- Images: Show thumbnail preview
+- Download functionality for all files
+- Proper error handling for missing properties
+
 ---
 
 *This implementation provides a robust, scalable foundation for PDF processing and vector search capabilities in the TalkPDF application.*

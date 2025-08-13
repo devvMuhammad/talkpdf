@@ -20,13 +20,21 @@ export const addMessage = mutation({
   args: {
     conversationId: v.id("conversations"),
     role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
-    content: v.string(),
+    parts: v.array(
+      v.object({
+        type: v.string(),
+        text: v.optional(v.string()),
+        mediaType: v.optional(v.string()),
+        filename: v.optional(v.string()),
+        url: v.optional(v.string()),
+      })
+    ),
   },
-  handler: async (ctx, { conversationId, role, content }) => {
+  handler: async (ctx, { conversationId, role, parts }) => {
     const messageId = await ctx.db.insert("messages", {
       conversationId,
       role,
-      content,
+      parts,
       createdAt: Date.now(),
     });
     return messageId;
@@ -38,7 +46,15 @@ export const addMessages = mutation({
     conversationId: v.id("conversations"),
     messages: v.array(v.object({
       role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
-      content: v.string(),
+      parts: v.array(
+        v.object({
+          type: v.string(),
+          text: v.optional(v.string()),
+          mediaType: v.optional(v.string()),
+          filename: v.optional(v.string()),
+          url: v.optional(v.string()),
+        })
+      ),
       createdAt: v.number(),
     }))
   },
@@ -68,7 +84,7 @@ export const getById = query({
       messages: messages.map((m) => ({
         id: m._id,
         role: m.role,
-        content: m.content,
+        parts: m.parts,
         createdAt: new Date(m.createdAt).toISOString(),
       })),
     };

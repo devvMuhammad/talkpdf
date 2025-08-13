@@ -15,7 +15,7 @@ export default async function ChatIdPage({ params }: { params: Promise<{ chatId:
   const initialMessages: UIMessage[] = chat.messages.map((m) => ({
     id: m.id,
     role: m.role,
-    parts: [{ type: "text", text: m.content }],
+    parts: m.parts,
   }));
 
   // Fetch uploaded files linked to this conversation

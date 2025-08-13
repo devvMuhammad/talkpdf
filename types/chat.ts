@@ -11,7 +11,13 @@ export type ChatDetail = {
     messages: Array<{
         id: string
         role: "user" | "assistant" | "system"
-        content: string
+        parts: Array<{
+            type: string
+            text?: string
+            mediaType?: string
+            filename?: string
+            url?: string
+        }>
         createdAt: string
     }>
 }

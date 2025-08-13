@@ -5,8 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { UploadCloud, FileText, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FileUploadLoader } from "@/components/ui/file-upload-loader";
-import { FileIndexingLoader } from "@/components/ui/file-indexing-loader";
+import { FileProgressCards } from "@/components/ui/file-progress-cards";
 import { useFileHandler } from "@/hooks/use-file-handler";
 import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
@@ -16,13 +15,14 @@ import { Id } from "@/convex/_generated/dataModel";
 
 function WelcomeStage() {
   const createConversation = useMutation(api.conversations.create)
-  const addMessage = useMutation(api.conversations.addMessage)
+  const addMessages = useMutation(api.conversations.addMessages)
   // const attachToConversation = useMutation(api.files.attachToConversation)
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [uploadCompleted, setUploadCompleted] = useState(false);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,13 +79,15 @@ function WelcomeStage() {
 
     setUploadSuccess(null);
     setErrorMessage(null);
+    setUploadCompleted(false);
     clearErrors();
 
     try {
       // Upload files using the new hook
       const uploadedFiles = await uploadFiles(selectedFiles);
+      setUploadCompleted(true);
 
-      // Index the uploaded files
+      // Index the uploaded files immediately for seamless transition
       try {
         await indexFiles(uploadedFiles);
         setUploadSuccess(`Successfully processed ${uploadedFiles.length} PDF(s)`);
@@ -96,13 +98,38 @@ function WelcomeStage() {
       }
 
       // Create conversation and redirect
-      const assistantMessage = "Your PDFs are uploaded and indexed. How can I help you explore them today?";
       const conversationId = await createConversation({
         title: selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} PDFs`,
         userId: session.user.id
       });
 
-      await addMessage({ conversationId, role: "assistant", content: assistantMessage });
+      // Create messages with parts structure matching UIMessage
+      const userMessageWithFiles = {
+        role: "user" as const,
+        parts: uploadedFiles.map(file => ({
+          type: "file",
+          mediaType: file.type,
+          filename: file.name,
+          url: file.url
+        })),
+        createdAt: Date.now(),
+      };
+
+      const assistantMessage = {
+        role: "assistant" as const,
+        parts: [{
+          type: "text",
+          text: "Your PDFs are uploaded and indexed. I can now help you explore their content, answer questions, summarize information, and more. What would you like to know?"
+        }],
+        createdAt: Date.now(),
+      };
+
+      // Add both messages using the batch function
+      await addMessages({ 
+        conversationId, 
+        messages: [userMessageWithFiles, assistantMessage]
+      });
+
       router.replace(`/chat/${conversationId}`);
 
     } catch (err) {
@@ -203,15 +230,14 @@ function WelcomeStage() {
                 ))}
               </ul>
 
-              {isUploading && (
+              {(isUploading || isIndexing) && (
                 <div className="mt-4">
-                  <FileUploadLoader files={selectedFiles.map(f => f.name)} />
-                </div>
-              )}
-
-              {isIndexing && (
-                <div className="mt-4">
-                  <FileIndexingLoader files={selectedFiles.map(f => f.name)} />
+                  <FileProgressCards 
+                    isUploading={isUploading}
+                    isIndexing={isIndexing}
+                    uploadCompleted={uploadCompleted}
+                    files={selectedFiles.map(f => f.name)}
+                  />
                 </div>
               )}
 
