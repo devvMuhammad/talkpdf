@@ -108,22 +108,22 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     };
   }, []);
 
-  // // Track whether user is at the bottom of the list
-  // useEffect(() => {
-  //   const el = messagesContainerRef.current;
-  //   if (!el) return;
-  //   const threshold = 24;
-  //   const onScroll = () => {
-  //     const atBottomNow = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
-  //     setIsAtBottom(atBottomNow);
-  //   };
-  //   el.addEventListener("scroll", onScroll, { passive: true });
-  //   // Initialize state
-  //   onScroll();
-  //   return () => {
-  //     el.removeEventListener("scroll", onScroll as EventListener);
-  //   };
-  // }, []);
+  // Track whether user is at the bottom of the list
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const threshold = 24;
+    const onScroll = () => {
+      const atBottomNow = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold;
+      setIsAtBottom(atBottomNow);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    // Initialize state
+    onScroll();
+    return () => {
+      el.removeEventListener("scroll", onScroll as EventListener);
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -131,6 +131,7 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     if (!value) return;
     sendMessage({ text: value });
     setInput("");
+    scrollToBottom()
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -141,62 +142,12 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
   };
 
   return (
-    <div className="h-full min-h-0 flex flex-col overflow-hidden">
-      {files && files.length > 0 && (
-        <div className="max-w-4xl mx-auto px-6 pt-4">
-          <Collapsible open={filesOpen} onOpenChange={setFilesOpen}>
-            <div className="rounded-xl border border-gray-800 bg-gray-900/60">
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="text-xs text-gray-400">Uploaded files</div>
-                <CollapsibleTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 px-2 text-gray-300 hover:text-gray-100 hover:bg-gray-800"
-                  >
-                    <ChevronDown className={cn("mr-1 h-4 w-4 transition-transform", filesOpen ? "rotate-180" : "rotate-0")} />
-                    {filesOpen ? "Hide" : "Show"}
-                  </Button>
-                </CollapsibleTrigger>
-              </div>
-              <CollapsibleContent>
-                <div className="px-4 pb-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {files.map((f: any) => (
-                      <div key={f._id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-md bg-blue-600/20 border border-blue-700/30 flex items-center justify-center text-blue-300 text-xs">PDF</div>
-                          <div className="min-w-0">
-                            <div className="text-sm text-gray-100 truncate">{f.name}</div>
-                            <div className="text-xs text-gray-500">{(f.size / (1024 * 1024)).toFixed(2)} MB</div>
-                          </div>
-                        </div>
-                        <Button
-                          asChild
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 px-2 text-gray-300 hover:text-gray-100 hover:bg-gray-800"
-                          disabled={!fileIdToUrl.get(String(f._id))}
-                          title={fileIdToUrl.get(String(f._id)) ? "Download" : "Preparing link..."}
-                        >
-                          <a href={fileIdToUrl.get(String(f._id)) || undefined} download>
-                            <Download className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
-        </div>
-      )}
+    <div className="h-full pt-12 min-h-0 flex flex-col overflow-hidden">
       <div className="w-full max-w-4xl mx-auto flex flex-col flex-1 min-h-0">
         {/* Messages Area */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 pt-6 chat-scroll"
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 pb-20 chat-scroll"
         >
           <div className="flex flex-col gap-4 md:gap-6 mx-auto">
             {messages.map((message, index) => {
@@ -236,24 +187,22 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
       </div>
 
       {/* Fixed Input Area */}
-      <div ref={inputContainerRef} className="px-6 pt-3 md:pt-4 shrink-0">
+      <div ref={inputContainerRef} className="px-6 shrink-0 relative">
         <div className="max-w-4xl mx-auto">
+          {/* Scroll to bottom button */}
           {!isAtBottom && (
-            <div className="flex justify-center px-4 pt-3">
-              <Button
-                onClick={scrollToBottom}
-                className="bg-gray-800 text-gray-100 hover:bg-gray-700 border border-gray-700"
-                size="sm"
-                type="button"
-              >
-                <ChevronDown className="mr-1 h-4 w-4" />
-                Scroll to bottom
-              </Button>
-            </div>
+            <Button
+              onClick={scrollToBottom}
+              className="absolute -top-12 left-1/2 transform -translate-x-1/2 h-10 w-10 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white shadow-lg border border-gray-700 transition-all duration-200 hover:scale-105 z-10"
+              size="sm"
+            >
+              <ChevronDown size={20} />
+            </Button>
           )}
+
           <form
             onSubmit={handleSubmit}
-            className="mt-3 sm:mt-4 rounded-2xl border border-gray-700 bg-gray-900 overflow-hidden shadow-lg"
+            className="rounded-2xl border border-gray-700 bg-gray-900 overflow-hidden shadow-lg"
           >
             {/* Scroll-to-bottom above the textarea */}
             <AutoResizeTextarea
