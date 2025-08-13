@@ -1,36 +1,42 @@
 "use client";
 
 import type React from "react";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { UploadCloud, FileText, X, CheckCircle2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { UploadCloud, FileText, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TinyLoader } from "@/components/ui/tiny-loader";
-import { toast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FileUploadLoader } from "@/components/ui/file-upload-loader";
+import { FileIndexingLoader } from "@/components/ui/file-indexing-loader";
+import { useFileHandler } from "@/hooks/use-file-handler";
 import { useRouter } from "next/navigation";
-import { useAction, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@clerk/nextjs";
 import { Id } from "@/convex/_generated/dataModel";
 
 function WelcomeStage() {
-
-  const saveFile = useMutation(api.files.saveFile)
-  const generateUploadUrl = useMutation(api.files.generateUploadUrl)
-  const indexFiles = useAction(api.indexing.indexFiles)
   const createConversation = useMutation(api.conversations.create)
   const addMessage = useMutation(api.conversations.addMessage)
-  const attachToConversation = useMutation(api.files.attachToConversation)
+  // const attachToConversation = useMutation(api.files.attachToConversation)
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [isIndexing, setIsIndexing] = useState(false);
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const { session } = useSession()
+
+  const {
+    isUploading,
+    isIndexing,
+    uploadError,
+    indexingError,
+    uploadFiles,
+    indexFiles,
+    clearErrors,
+  } = useFileHandler()
 
 
   const onFilesChosen = (files: FileList | null) => {
@@ -67,43 +73,27 @@ function WelcomeStage() {
     return `${mb.toFixed(2)} MB`;
   }, [selectedFiles]);
 
-  const uploadFiles = useCallback(async () => {
-
+  const handleUploadFiles = async () => {
     if (!session?.user.id) return;
-
     if (!selectedFiles.length) return;
-    setIsUploading(true);
-    setIsIndexing(false);
 
     setUploadSuccess(null);
+    setErrorMessage(null);
+    clearErrors();
+
     try {
-      // Step 1-3 per Convex docs for each file
-      const savedFileIds: string[] = [];
-      for (const file of selectedFiles) {
-        const postUrl = await generateUploadUrl();
-        const result = await fetch(postUrl, {
-          method: "POST",
-          headers: { "Content-Type": file.type },
-          body: file,
-        });
-        if (!result.ok) throw new Error("Failed to upload to Convex storage");
-        const { storageId } = await result.json();
-        const fileId = await saveFile({
-          storageId,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-        });
-        savedFileIds.push(fileId as unknown as string);
+      // Upload files using the new hook
+      const uploadedFiles = await uploadFiles(selectedFiles);
+
+      // Index the uploaded files
+      try {
+        await indexFiles(uploadedFiles);
+        setUploadSuccess(`Successfully processed ${uploadedFiles.length} PDF(s)`);
+      } catch (indexError) {
+        const errorMsg = indexError instanceof Error ? indexError.message : "Failed to process PDFs for search";
+        setErrorMessage(`Upload successful but indexing failed: ${errorMsg}`);
+        return;
       }
-
-      setUploadSuccess(`Uploaded ${savedFileIds.length} file(s) successfully`);
-      toast({ title: "Upload complete", description: `${savedFileIds.length} file(s) uploaded.` });
-
-      // Optional: simple indexing step without SSE, just a loading state
-      setIsIndexing(true);
-      await indexFiles({ fileIds: savedFileIds as Id<"files">[] });
-      toast({ title: "Indexing complete", description: `Your PDFs are ready.` });
 
       // Create conversation and redirect
       const assistantMessage = "Your PDFs are uploaded and indexed. How can I help you explore them today?";
@@ -111,19 +101,17 @@ function WelcomeStage() {
         title: selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} PDFs`,
         userId: session.user.id
       });
-      // Attach uploaded files to this conversation for later display in chat view
-      await attachToConversation({ conversationId, fileIds: savedFileIds as Id<"files">[] });
+
       await addMessage({ conversationId, role: "assistant", content: assistantMessage });
       router.replace(`/chat/${conversationId}`);
+
     } catch (err) {
       console.error(err);
-      setUploadSuccess("Upload failed. Please try again.");
-      toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
-    } finally {
-      setIsUploading(false);
-      setIsIndexing(false);
+      const errorMsg = err instanceof Error ? err.message : "Upload failed";
+      setErrorMessage(errorMsg);
+      setUploadSuccess(null);
     }
-  }, [selectedFiles, session?.user.id]);
+  };
 
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-6">
@@ -215,30 +203,47 @@ function WelcomeStage() {
                 ))}
               </ul>
 
-              {(isUploading || isIndexing) && (
+              {isUploading && (
                 <div className="mt-4">
-                  <TinyLoader label={isUploading ? "Uploading..." : "Indexing..."} />
+                  <FileUploadLoader files={selectedFiles.map(f => f.name)} />
+                </div>
+              )}
+
+              {isIndexing && (
+                <div className="mt-4">
+                  <FileIndexingLoader files={selectedFiles.map(f => f.name)} />
+                </div>
+              )}
+
+              {errorMessage && (
+                <div className="mt-4">
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      {errorMessage}
+                    </AlertDescription>
+                  </Alert>
                 </div>
               )}
 
               <div className="mt-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <CheckCircle2
-                    className={`h-4 w-4 ${uploadSuccess ? "text-green-400" : "text-gray-500"
+                    className={`h-4 w-4 ${uploadSuccess && !errorMessage ? "text-green-400" : "text-gray-500"
                       }`}
                   />
                   <span>
-                    {uploadSuccess
+                    {uploadSuccess && !errorMessage
                       ? uploadSuccess
                       : "Files are uploaded securely for analysis."}
                   </span>
                 </div>
                 <Button
-                  onClick={uploadFiles}
-                  disabled={isUploading || selectedFiles.length === 0}
+                  onClick={handleUploadFiles}
+                  disabled={isUploading || isIndexing || selectedFiles.length === 0}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  {isUploading ? "Uploading..." : "Upload PDFs"}
+                  {isUploading ? "Uploading..." : isIndexing ? "Processing..." : "Upload PDFs"}
                 </Button>
               </div>
             </div>
