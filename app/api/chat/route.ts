@@ -36,7 +36,13 @@ export async function POST(req: Request) {
 
       const messagesToSave = [userMessage, responseMessage].filter(m => m !== undefined).map(m => ({
         role: m.role,
-        content: m.parts.map(p => p.type === "text" ? p.text : "").join(""),
+        parts: m.parts.map(p => ({
+          type: p.type,
+          text: p.type === "text" ? p.text : undefined,
+          mediaType: p.type === "file" ? p.mediaType : undefined,
+          filename: p.type === "file" ? p.filename : undefined,
+          url: p.type === "file" ? p.url : undefined,
+        })),
         createdAt: Date.now(),
       }))
 

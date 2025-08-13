@@ -1,24 +1,23 @@
-import React, { memo, useMemo } from "react";
+import React, { memo } from "react";
 import ReactMarkdown, { type Options } from "react-markdown";
-import { marked } from "marked";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const components: Options["components"] = {
   h1: ({ node, ...props }) => (
-    <h1 className="text-xl font-semibold text-gray-100 mt-2" {...props} />
+    <h1 className="text-xl font-semibold text-gray-100 mt-1 mb-1" {...props} />
   ),
   h2: ({ node, ...props }) => (
-    <h2 className="text-lg font-semibold text-gray-100 mt-2" {...props} />
+    <h2 className="text-lg font-semibold text-gray-100 mt-1 mb-1" {...props} />
   ),
   h3: ({ node, ...props }) => (
-    <h3 className="text-base font-semibold text-gray-100 mt-2" {...props} />
+    <h3 className="text-base font-semibold text-gray-100 mt-1 mb-1" {...props} />
   ),
-  p: ({ node, ...props }) => <p className="mb-3" {...props} />,
-  ul: ({ node, ...props }) => <ul className="list-disc pl-3 space-y-1" {...props} />,
-  ol: ({ node, ...props }) => <ol className="list-decimal pl-3" {...props} />,
-  li: ({ node, ...props }) => <li {...props} />,
+  p: ({ node, ...props }) => <p className="mb-1" {...props} />,
+  ul: ({ node, ...props }) => <ul className="list-disc pl-4 space-y-0" {...props} />,
+  ol: ({ node, ...props }) => <ol className="list-decimal pl-4 space-y-0" {...props} />,
+  li: ({ node, ...props }) => <li className="mb-1" {...props} />,
   a: ({ node, ...props }) => (
     <a className="text-blue-400 hover:underline" target="_blank" rel="noreferrer" {...props} />
   ),
@@ -53,13 +52,8 @@ const components: Options["components"] = {
   },
 };
 
-function parseMarkdownIntoBlocks(markdown: string): string[] {
-  const tokens = marked.lexer(markdown);
-  return tokens.map(token => token.raw);
-}
-
-const MemoizedMarkdownBlock = memo(
-  ({ content }: { content: string }) => {
+export const MemoizedMarkdown = memo(
+  ({ content, id }: { content: string; id?: string }) => {
     return (
       <ReactMarkdown components={components} remarkPlugins={[remarkGfm]}>
         {content}
@@ -68,27 +62,8 @@ const MemoizedMarkdownBlock = memo(
   },
   (prevProps, nextProps) => {
     if (prevProps.content !== nextProps.content) return false;
+    if (prevProps.id !== nextProps.id) return false;
     return true;
-  },
-);
-
-MemoizedMarkdownBlock.displayName = 'MemoizedMarkdownBlock';
-
-export const MemoizedMarkdown = memo(
-  ({ content, id }: { content: string; id?: string }) => {
-    const messageId = id || 'message';
-    const blocks = useMemo(() => parseMarkdownIntoBlocks(content), [content]);
-
-    return (
-      <div>
-        {blocks.map((block, index) => (
-          <MemoizedMarkdownBlock
-            content={block}
-            key={`${messageId}-block_${index}`}
-          />
-        ))}
-      </div>
-    );
   },
 );
 
