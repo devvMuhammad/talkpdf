@@ -20,34 +20,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 })
     }
 
-    // Check user's storage billing
-    const billing = await fetchQuery(api.billing.getUserBilling, { userId });
-    if (!billing) {
-      // Initialize billing for new users
-      await fetchMutation(api.billing.initializeUserBilling, { userId });
-    }
+    // // Check user's storage billing
+    // const billing = await fetchQuery(api.billing.getUserBilling, { userId });
+    // if (!billing) {
+    //   // Initialize billing for new users
+    //   await fetchMutation(api.billing.initializeUserBilling, { userId });
+    // }
 
-    const currentBilling = billing || await fetchQuery(api.billing.getUserBilling, { userId });
-    if (!currentBilling) {
-      return NextResponse.json({ error: "Failed to check storage limits" }, { status: 500 });
-    }
+    // const currentBilling = billing || await fetchQuery(api.billing.getUserBilling, { userId });
+    // if (!currentBilling) {
+    //   return NextResponse.json({ error: "Failed to check storage limits" }, { status: 500 });
+    // }
 
     // Calculate total size of files being uploaded
-    const totalUploadSize = files.reduce((total, file) => total + file.size, 0);
-    
-    // Check if user has enough storage
-    if (currentBilling.storageUsed + totalUploadSize > currentBilling.storageLimit) {
-      return NextResponse.json(
-        { 
-          error: "Insufficient storage space",
-          storageNeeded: totalUploadSize,
-          storageAvailable: currentBilling.storageLimit - currentBilling.storageUsed,
-          currentUsage: currentBilling.storageUsed,
-          limit: currentBilling.storageLimit
-        },
-        { status: 413 } // Payload Too Large
-      );
-    }
+    // const totalUploadSize = files.reduce((total, file) => total + file.size, 0);
+
+    // // Check if user has enough storage
+    // if (currentBilling.storageUsed + totalUploadSize > currentBilling.storageLimit) {
+    //   return NextResponse.json(
+    //     { 
+    //       error: "Insufficient storage space",
+    //       storageNeeded: totalUploadSize,
+    //       storageAvailable: currentBilling.storageLimit - currentBilling.storageUsed,
+    //       currentUsage: currentBilling.storageUsed,
+    //       limit: currentBilling.storageLimit
+    //     },
+    //     { status: 413 } // Payload Too Large
+    //   );
+    // }
 
     // Validate files
     for (const file of files) {
@@ -94,19 +94,19 @@ export async function POST(request: NextRequest) {
           userId,
         })
 
-        // Record storage usage
-        try {
-          await fetchMutation(api.billing.recordStorageUsage, {
-            userId,
-            sizeBytes: file.size,
-            fileId,
-            operationType: "file_upload",
-            filename: file.name,
-          });
-        } catch (billingError) {
-          console.error(`Error recording storage usage for ${file.name}:`, billingError);
-          // Don't fail the upload if billing fails, but log it
-        }
+        // // Record storage usage
+        // try {
+        //   await fetchMutation(api.billing.recordStorageUsage, {
+        //     userId,
+        //     sizeBytes: file.size,
+        //     fileId,
+        //     operationType: "file_upload",
+        //     filename: file.name,
+        //   });
+        // } catch (billingError) {
+        //   console.error(`Error recording storage usage for ${file.name}:`, billingError);
+        //   // Don't fail the upload if billing fails, but log it
+        // }
 
         uploadedFiles.push({
           fileId,

@@ -47,17 +47,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 })
     }
 
-    // Check user's billing status
-    const billing = await fetchQuery(api.billing.getUserBilling, { userId });
-    if (!billing) {
-      // Initialize billing for new users
-      await fetchMutation(api.billing.initializeUserBilling, { userId });
-    }
+    // // Check user's billing status
+    // const billing = await fetchQuery(api.billing.getUserBilling, { userId });
+    // if (!billing) {
+    //   // Initialize billing for new users
+    //   await fetchMutation(api.billing.initializeUserBilling, { userId });
+    // }
 
-    const currentBilling = billing || await fetchQuery(api.billing.getUserBilling, { userId });
-    if (!currentBilling) {
-      return NextResponse.json({ error: "Failed to check token limits" }, { status: 500 });
-    }
+    // const currentBilling = billing || await fetchQuery(api.billing.getUserBilling, { userId });
+    // if (!currentBilling) {
+    //   return NextResponse.json({ error: "Failed to check token limits" }, { status: 500 });
+    // }
 
     const indexName = process.env.PINECONE_INDEX_NAME!
     const namespace = `user-${userId}`
