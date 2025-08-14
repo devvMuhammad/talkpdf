@@ -230,6 +230,44 @@ export const resetUserTokens = mutation({
   },
 });
 
+// Get token transactions with pagination
+export const getTokenTransactions = query({
+  args: {
+    userId: v.string(),
+    limit: v.optional(v.number()),
+    offset: v.optional(v.number()),
+  },
+  handler: async (ctx, { userId, limit = 50, offset = 0 }) => {
+    const transactions = await ctx.db
+      .query("tokenTransactions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(limit + offset);
+
+    // Apply offset manually since Convex doesn't have skip
+    return transactions.slice(offset, offset + limit);
+  },
+});
+
+// Get storage transactions with pagination
+export const getStorageTransactions = query({
+  args: {
+    userId: v.string(),
+    limit: v.optional(v.number()),
+    offset: v.optional(v.number()),
+  },
+  handler: async (ctx, { userId, limit = 50, offset = 0 }) => {
+    const transactions = await ctx.db
+      .query("storageTransactions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(limit + offset);
+
+    // Apply offset manually since Convex doesn't have skip
+    return transactions.slice(offset, offset + limit);
+  },
+});
+
 // Upgrade user limits (converted from API route)
 export const upgradeUser = mutation({
   args: {

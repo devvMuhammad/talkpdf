@@ -91,6 +91,17 @@ export const getById = query({
   },
 });
 
+export const update = mutation({
+  args: {
+    id: v.id("conversations"),
+    title: v.string(),
+  },
+  handler: async (ctx, { id, title }) => {
+    await ctx.db.patch(id, { title });
+    return null;
+  },
+});
+
 export const getByUserId = query({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {

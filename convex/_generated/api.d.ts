@@ -18,6 +18,7 @@ import type * as conversations from "../conversations.js";
 import type * as files from "../files.js";
 import type * as index from "../index.js";
 import type * as indexing from "../indexing.js";
+import type * as titleGeneration from "../titleGeneration.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   index: typeof index;
   indexing: typeof indexing;
+  titleGeneration: typeof titleGeneration;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

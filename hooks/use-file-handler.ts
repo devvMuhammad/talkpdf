@@ -9,6 +9,14 @@ export interface FileData {
   type: string
 }
 
+export interface IndexingResult {
+  fileId: string
+  fileName: string
+  chunks: number
+  textContent?: string
+  status: 'success' | 'error'
+}
+
 export interface UseFileHandlerReturn {
   // Upload states
   isUploading: boolean
@@ -20,7 +28,7 @@ export interface UseFileHandlerReturn {
   
   // Actions
   uploadFiles: (files: File[]) => Promise<FileData[]>
-  indexFiles: (files: FileData[]) => Promise<void>
+  indexFiles: (files: FileData[], conversationId?: string) => Promise<IndexingResult[]>
   clearErrors: () => void
   reset: () => void
 }
@@ -90,8 +98,8 @@ export function useFileHandler(): UseFileHandlerReturn {
     }
   }, [])
 
-  const indexFiles = useCallback(async (files: FileData[]): Promise<void> => {
-    if (files.length === 0) return
+  const indexFiles = useCallback(async (files: FileData[], conversationId?: string): Promise<IndexingResult[]> => {
+    if (files.length === 0) return []
 
     setIsIndexing(true)
     setIndexingError(null)
@@ -102,7 +110,7 @@ export function useFileHandler(): UseFileHandlerReturn {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ files }),
+        body: JSON.stringify({ files, conversationId }),
       })
 
       if (!response.ok) {
@@ -116,6 +124,8 @@ export function useFileHandler(): UseFileHandlerReturn {
         title: "Indexing complete",
         description: `${result.summary.successful}/${result.summary.total} files indexed with ${result.totalChunks} total chunks`,
       })
+
+      return result.files || []
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Indexing failed'

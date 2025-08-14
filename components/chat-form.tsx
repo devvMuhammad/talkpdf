@@ -48,10 +48,13 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     onError: (error) => {
       console.error("Chat error:", error)
 
-      // Try to parse the error response to get detailed limit information
-      toast.error("You have exceeded your token limit. Please upgrade your plan.", {
-        duration: 10000,
-      });
+      if (error.message.includes("limit")) {
+        // Try to parse the error response to get detailed limit information
+        toast.error("You have exceeded your token limit. Please upgrade your plan.", {
+          duration: 10000,
+        });
+      }
+      toast.error(error.message);
     }
   });
 

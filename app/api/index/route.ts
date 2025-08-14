@@ -30,6 +30,11 @@ interface FileData {
   fileId: string
 }
 
+interface IndexRequest {
+  files: FileData[]
+  conversationId?: string
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth()
@@ -38,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { files } = await request.json() as { files: FileData[] }
+    const { files, conversationId } = await request.json() as IndexRequest
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: "No files provided" }, { status: 400 })
@@ -98,6 +103,7 @@ export async function POST(request: NextRequest) {
             fileName: file.name,
             userId,
             source: file.url,
+            conversationId: conversationId || null,
           }
         }))
 
@@ -110,10 +116,15 @@ export async function POST(request: NextRequest) {
         }
 
         totalChunks += chunks.length
+        
+        // Get the first few chunks of text content for title generation
+        const textContent = chunks.slice(0, 3).map(chunk => chunk.pageContent).join(' ')
+        
         processedFiles.push({
           fileId: file.fileId,
           fileName: file.name,
           chunks: chunks.length,
+          textContent: textContent.substring(0, 500), // Limit to 500 chars for title generation
           status: 'success'
         })
 

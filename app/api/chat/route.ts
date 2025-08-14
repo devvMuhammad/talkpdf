@@ -63,7 +63,7 @@ export async function POST(req: Request) {
 
       // Search for relevant documents
       console.log("Searching for relevant documents...")
-      const relevantDocuments = await searchRelevantDocuments(userId, queryEmbedding, 10)
+      const relevantDocuments = await searchRelevantDocuments(userId, queryEmbedding, 10, conversationId)
       documentsFound = relevantDocuments.length
 
       // Get recent conversation history

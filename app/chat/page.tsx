@@ -8,20 +8,24 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FileProgressCards } from "@/components/ui/file-progress-cards";
 import { useFileHandler } from "@/hooks/use-file-handler";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@clerk/nextjs";
 import { toast } from "sonner";
 
 function WelcomeStage() {
   const createConversation = useMutation(api.conversations.create)
+  const updateConversation = useMutation(api.conversations.update)
   const addMessages = useMutation(api.conversations.addMessages)
+  const generateTitle = useAction(api.titleGeneration.generateTitle)
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploadCompleted, setUploadCompleted] = useState(false);
+  const [indexingCompleted, setIndexingCompleted] = useState(false);
+  const [processStarted, setProcessStarted] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,27 +94,57 @@ function WelcomeStage() {
     setUploadSuccess(null);
     setErrorMessage(null);
     setUploadCompleted(false);
+    setIndexingCompleted(false);
+    setProcessStarted(true);
 
     try {
       // Upload files using the new hook
       const uploadedFiles = await uploadFiles(selectedFiles);
       setUploadCompleted(true);
 
-      // Index the uploaded files immediately for seamless transition
-      try {
-        await indexFiles(uploadedFiles);
-        setUploadSuccess(`Successfully processed ${uploadedFiles.length} PDF(s)`);
-      } catch (indexError) {
-        const errorMsg = indexError instanceof Error ? indexError.message : "Failed to process PDFs for search";
-        setErrorMessage(`Upload successful but indexing failed: ${errorMsg}`);
-        return;
-      }
+      // Small delay to allow smooth transition animation
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Create conversation and redirect
+      // Create conversation first with temporary title
       const conversationId = await createConversation({
         title: selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} PDFs`,
         userId: session.user.id
       });
+
+      // Index the uploaded files with conversation ID
+      let indexingResults;
+      try {
+        indexingResults = await indexFiles(uploadedFiles, conversationId);
+        setIndexingCompleted(true);
+        setUploadSuccess(`Successfully processed ${uploadedFiles.length} PDF(s)`);
+      } catch (indexError) {
+        const errorMsg = indexError instanceof Error ? indexError.message : "Failed to process PDFs for search";
+        setErrorMessage(`Upload successful but indexing failed: ${errorMsg}`);
+        setProcessStarted(false);
+        return;
+      }
+
+      // Generate conversation title from extracted text content using AI
+      const textContentArray = indexingResults.map(result => result.textContent);
+      const fileNames = selectedFiles.map(file => file.name);
+
+      try {
+        const titleResult = await generateTitle({
+          textContent: textContentArray.filter(Boolean) as string[],
+          fileNames: fileNames
+        });
+
+        const conversationTitle = titleResult.title || (fileNames.length === 1 ? fileNames[0] : `${fileNames.length} PDFs`);
+
+        // Update conversation title
+        await updateConversation({
+          id: conversationId,
+          title: conversationTitle
+        });
+      } catch (titleError) {
+        console.error("Failed to generate title:", titleError);
+        // Keep the temporary title if generation fails
+      }
 
       // Create messages with parts structure matching UIMessage
       const userMessageWithFiles = {
@@ -140,12 +174,14 @@ function WelcomeStage() {
       });
 
       router.replace(`/chat/${conversationId}`);
+      setProcessStarted(false);
 
     } catch (err) {
       console.error(err);
       const errorMsg = err instanceof Error ? err.message : "Upload failed";
       setErrorMessage(errorMsg);
       setUploadSuccess(null);
+      setProcessStarted(false);
     }
   };
 
@@ -239,13 +275,15 @@ function WelcomeStage() {
                 ))}
               </ul>
 
-              {(isUploading || isIndexing) && (
+              {processStarted && (
                 <div className="mt-4">
                   <FileProgressCards
                     isUploading={isUploading}
                     isIndexing={isIndexing}
                     uploadCompleted={uploadCompleted}
+                    indexingCompleted={indexingCompleted}
                     files={selectedFiles.map(f => f.name)}
+                    processStarted={processStarted}
                   />
                 </div>
               )}

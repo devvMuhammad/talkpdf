@@ -74,7 +74,8 @@ export async function generateQueryEmbedding(query: string, userId?: string): Pr
 export async function searchRelevantDocuments(
   userId: string,
   queryEmbedding: number[],
-  topK: number = 5
+  topK: number = 5,
+  conversationId?: string
 ): Promise<RetrievedDocument[]> {
   try {
     const indexName = process.env.PINECONE_INDEX_NAME!
@@ -85,11 +86,15 @@ export async function searchRelevantDocuments(
     const index = pinecone.index(indexName)
     const namespace = `user-${userId}`
 
+    // Build filter object for conversation ID if provided
+    const filter = conversationId ? { conversationId } : undefined
+
     const searchResults = await index.namespace(namespace).query({
       vector: queryEmbedding,
       topK,
       includeMetadata: true,
       includeValues: false,
+      filter
     })
 
     const documents: RetrievedDocument[] = searchResults.matches.map((match) => ({
