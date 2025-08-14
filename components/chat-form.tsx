@@ -46,9 +46,41 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
       console.log("FINISH", message)
     },
     onError: (error) => {
+      console.error("Chat error:", error)
+      
+      // Try to parse the error response to get detailed limit information
+      let errorMessage = error.message || "An error occurred";
+      
+      try {
+        // Check if the error is from a fetch response with JSON
+        if (error.message && error.message.includes("limit") || error.message.includes("token") || error.message.includes("storage")) {
+          errorMessage = error.message;
+        }
+      } catch (parseError) {
+        console.error("Error parsing error message:", parseError);
+      }
 
-      console.error("ERROR", error)
-      toast.error(error.message || "An error occurred")
+      // Show a more prominent error for limit-related issues
+      if (errorMessage.toLowerCase().includes("limit") || 
+          errorMessage.toLowerCase().includes("exceed") ||
+          errorMessage.toLowerCase().includes("upgrade")) {
+        toast.error(errorMessage, {
+          duration: 10000, // Show longer for important limit messages
+          description: "Check your plan usage below and upgrade if needed.",
+          action: {
+            label: "View Usage",
+            onClick: () => {
+              // Scroll to plan usage component or show upgrade dialog
+              const planUsageElement = document.querySelector('[data-testid="plan-usage"]');
+              if (planUsageElement) {
+                planUsageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }
+          }
+        });
+      } else {
+        toast.error(errorMessage);
+      }
     }
   });
 

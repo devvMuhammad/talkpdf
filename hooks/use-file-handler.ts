@@ -51,6 +51,11 @@ export function useFileHandler(): UseFileHandlerReturn {
 
       if (!response.ok) {
         const errorData = await response.json()
+        // Check if it's a limit-related error for better handling
+        if (response.status === 413 || response.status === 429) {
+          // This is a limit error, provide more specific messaging
+          throw new Error(errorData.error || 'Upload limit exceeded')
+        }
         throw new Error(errorData.error || 'Upload failed')
       }
 
@@ -67,10 +72,16 @@ export function useFileHandler(): UseFileHandlerReturn {
       const errorMessage = error instanceof Error ? error.message : 'Upload failed'
       setUploadError(errorMessage)
 
+      // Provide different toast messaging for limit vs other errors
+      const isLimitError = errorMessage.toLowerCase().includes('limit') || 
+                          errorMessage.toLowerCase().includes('exceed') ||
+                          errorMessage.toLowerCase().includes('upgrade')
+
       toast({
-        title: "Upload failed",
+        title: isLimitError ? "Storage limit exceeded" : "Upload failed",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
+        duration: isLimitError ? 10000 : 5000, // Show limit errors longer
       })
 
       throw error

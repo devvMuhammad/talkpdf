@@ -4,11 +4,10 @@ import { api } from "@/convex/_generated/api";
 import { fetchMutation } from "convex/nextjs";
 import { Id } from "@/convex/_generated/dataModel";
 import { auth } from "@clerk/nextjs/server";
+import { checkTokenLimit, recordTokens, createLimitErrorResponse } from "@/lib/billing-utils";
 import {
   generateQueryEmbedding,
   searchRelevantDocuments,
-  getRecentMessages,
-  extractTextFromMessages,
   createRAGPrompt
 } from "@/lib/rag-utils";
 
@@ -27,11 +26,17 @@ export async function POST(req: Request) {
       return new Response("Unauthorized", { status: 401 })
     }
 
+    // Check user's token limits before processing
+    const estimatedTokensNeeded = 1000; // Conservative estimate for chat response
+    const tokenCheck = await checkTokenLimit(userId, estimatedTokensNeeded);
+    if (!tokenCheck.allowed) {
+      return createLimitErrorResponse(tokenCheck, 'tokens');
+    }
+
     const { messages, conversationId } = await req.json() as {
       messages: UIMessage[],
       conversationId: Id<"conversations">
     }
-
 
     // Get the latest user message
     const latestMessage = messages.at(-1)
@@ -55,7 +60,7 @@ export async function POST(req: Request) {
     try {
       // Generate embedding for the user question
       console.log("Generating embedding for query:", userQuestion)
-      const queryEmbedding = await generateQueryEmbedding(userQuestion)
+      const queryEmbedding = await generateQueryEmbedding(userQuestion, userId)
 
       // Search for relevant documents
       console.log("Searching for relevant documents...")
@@ -119,7 +124,16 @@ export async function POST(req: Request) {
           messages: messagesToSave,
         })
 
-        console.log("TOKEN USAGE", await result.usage)
+        // Record token usage
+        try {
+          const usage = await result.usage;
+          await recordTokens(userId, usage.totalTokens || 0, "chat_message", {
+            conversationId,
+            description: `Chat response with ${documentsFound} documents used`,
+          })
+        } catch (tokenError) {
+          console.error("Error getting token usage:", tokenError);
+        }
 
         console.log(`RAG response completed. Documents used: ${documentsFound}`)
       }
