@@ -4,6 +4,8 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { ChatListSkeleton } from "@/components/skeletons/chat-list-skeleton"
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
+import { fetchMutation, fetchQuery } from "convex/nextjs"
+import { api } from "@/convex/_generated/api"
 
 export default async function ChatLayout({ children }: { children: ReactNode }) {
   const { userId } = await auth()

@@ -17,16 +17,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Cpu, Database, DollarSign, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { useUser } from "@clerk/nextjs";
+import { DEFAULT_LIMITS, PRICING } from "@/lib/config";
 
 const upgradeSchema = z.object({
   tokens: z.number()
-    .min(1000, "Minimum 1,000 tokens")
+    .min(PRICING.TOKENS_PER_DOLLAR, `Minimum ${PRICING.TOKENS_PER_DOLLAR.toLocaleString()} tokens`)
     .max(100000, "Maximum 100,000 tokens")
-    .default(5000),
+    .default(DEFAULT_LIMITS.FREE_TOKENS),
   storage: z.number()
     .min(0, "Storage cannot be negative")
     .max(10 * 1024, "Maximum 10GB storage") // In MB for easier input
-    .default(500),
+    .default(PRICING.STORAGE_MB_PER_DOLLAR),
 });
 
 type UpgradeFormData = z.infer<typeof upgradeSchema>;
@@ -37,7 +39,7 @@ interface BillingData {
   storageUsed: number;
   storageLimit: number;
   subscriptionType: "free" | "paid";
-  subscriptionStatus: "active" | "inactive" | "cancelled";
+  subscriptionStatus: "active" | "cancelled" | "expired";
 }
 
 interface UpgradeDialogProps {
@@ -47,6 +49,7 @@ interface UpgradeDialogProps {
 
 export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useUser();
 
   const {
     register,
@@ -56,16 +59,16 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
   } = useForm<UpgradeFormData>({
     resolver: zodResolver(upgradeSchema),
     defaultValues: {
-      tokens: 5000,
-      storage: 500,
+      tokens: DEFAULT_LIMITS.FREE_TOKENS,
+      storage: PRICING.STORAGE_MB_PER_DOLLAR,
     }
   });
 
   const watchedValues = watch();
   
   // Calculate costs
-  const tokenCost = Math.ceil(watchedValues.tokens / 1000); // $1 per 1k tokens
-  const storageCost = Math.ceil(watchedValues.storage / 500); // $1 per 500MB
+  const tokenCost = Math.ceil(watchedValues.tokens / PRICING.TOKENS_PER_DOLLAR); // $1 per configured tokens
+  const storageCost = Math.ceil(watchedValues.storage / PRICING.STORAGE_MB_PER_DOLLAR); // $1 per configured storage
   const totalCost = tokenCost + storageCost;
 
   // Calculate new limits
@@ -79,41 +82,50 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
   };
 
   const onSubmit = async (data: UpgradeFormData) => {
+    if (!user?.id) {
+      toast.error("User not authenticated");
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      const response = await fetch("/api/billing/upgrade", {
-        method: "POST",
+      // Create Lemon Squeezy checkout
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tokensToAdd: data.tokens,
-          storageToAdd: data.storage * 1024 * 1024, // Convert MB to bytes
-          subscriptionType: "paid",
+          tokens: data.tokens,
+          storage: data.storage,
         }),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Upgrade failed");
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Checkout creation failed');
       }
 
-      const result = await response.json();
+      const { checkout_url, summary } = await response.json();
+
+      // Redirect user to Lemon Squeezy checkout
+      window.location.href = checkout_url;
       
-      toast.success("Upgrade successful!", {
-        description: `Added ${data.tokens.toLocaleString()} tokens and ${data.storage}MB storage`,
+      // Note: The onSuccess callback will be called via webhook after successful payment
+      // For now, we'll show a message that the user is being redirected
+      toast.success("Redirecting to checkout...", {
+        description: `You'll be charged $${summary.total_cost} for ${summary.tokens.toLocaleString()} tokens and ${summary.storage_mb}MB storage`,
       });
 
-      onSuccess();
     } catch (error) {
-      console.error("Upgrade error:", error);
-      toast.error("Upgrade failed", {
+      console.error("Checkout error:", error);
+      toast.error("Checkout failed", {
         description: error instanceof Error ? error.message : "Please try again",
       });
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false); // Reset loading state on error
     }
+    // Note: We don't reset setIsSubmitting on success since the user is being redirected
   };
 
   return (
@@ -161,7 +173,7 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
           <Input
             id="tokens"
             type="number"
-            step={1000}
+            step={PRICING.TOKENS_PER_DOLLAR}
             {...register("tokens", { valueAsNumber: true })}
             className="text-right"
           />
@@ -169,7 +181,7 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
             <p className="text-sm text-red-500">{errors.tokens.message}</p>
           )}
           <p className="text-xs text-gray-500">
-            $1 per 1,000 tokens • Cost: ${tokenCost}
+            $1 per {PRICING.TOKENS_PER_DOLLAR.toLocaleString()} tokens • Cost: ${tokenCost}
           </p>
         </div>
 
@@ -190,7 +202,7 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
             <p className="text-sm text-red-500">{errors.storage.message}</p>
           )}
           <p className="text-xs text-gray-500">
-            $1 per 500MB • Cost: ${storageCost}
+            $1 per {PRICING.STORAGE_MB_PER_DOLLAR}MB • Cost: ${storageCost}
           </p>
         </div>
 
@@ -232,9 +244,9 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
           disabled={isSubmitting || totalCost === 0}
         >
           {isSubmitting ? (
-            "Processing..."
+            "Redirecting to checkout..."
           ) : (
-            `Upgrade for $${totalCost}`
+            `Pay $${totalCost} with Lemon Squeezy`
           )}
         </Button>
 

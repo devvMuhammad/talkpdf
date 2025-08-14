@@ -4,6 +4,12 @@ import { api } from "@/convex/_generated/api"
 import { fetchQuery } from "convex/nextjs"
 import { Id } from "@/convex/_generated/dataModel"
 import { ChatPromptTemplate } from "@langchain/core/prompts"
+import { OpenAI } from "openai"
+import { recordTokens } from "@/lib/billing-utils"
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+})
 
 // Initialize Pinecone
 const pinecone = new Pinecone({
@@ -37,12 +43,25 @@ interface ConversationMessage {
 }
 
 /**
- * Generate embedding for a user query
+ * Generate embedding for a user query with token tracking
  */
-export async function generateQueryEmbedding(query: string): Promise<number[]> {
+export async function generateQueryEmbedding(query: string, userId?: string): Promise<number[]> {
   try {
-    const embedding = await embeddings.embedQuery(query)
-    return embedding
+    // Use OpenAI client directly to get usage information
+    const response = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: query,
+      dimensions: 512,
+    });
+
+    // Record token usage if userId is provided
+    if (userId && response.usage) {
+      await recordTokens(userId, response.usage.total_tokens, "query_embedding", {
+        description: "Query embedding generation",
+      });
+    }
+
+    return response.data[0].embedding;
   } catch (error) {
     console.error("Error generating query embedding:", error)
     throw new Error("Failed to generate embedding for query")
@@ -53,9 +72,9 @@ export async function generateQueryEmbedding(query: string): Promise<number[]> {
  * Search Pinecone for relevant document chunks
  */
 export async function searchRelevantDocuments(
-  userId: string, 
-  queryEmbedding: number[], 
-  topK: number = 10
+  userId: string,
+  queryEmbedding: number[],
+  topK: number = 5
 ): Promise<RetrievedDocument[]> {
   try {
     const indexName = process.env.PINECONE_INDEX_NAME!
@@ -91,14 +110,14 @@ export async function searchRelevantDocuments(
  * Get the last N messages from a conversation
  */
 export async function getRecentMessages(
-  conversationId: Id<"conversations">, 
+  conversationId: Id<"conversations">,
   limit: number = 5
 ): Promise<ConversationMessage[]> {
   try {
-    const conversation = await fetchQuery(api.conversations.getById, { 
-      id: conversationId 
+    const conversation = await fetchQuery(api.conversations.getById, {
+      id: conversationId
     })
-    
+
     if (!conversation || !conversation.messages) {
       return []
     }
@@ -171,7 +190,7 @@ RESPONSE GUIDELINES:
 - Quote document sources when making specific claims
 - If information is missing, suggest what additional context might help
 - Maintain awareness of the ongoing conversation context`],
-  
+
   ["user", `DOCUMENT CONTEXT:
 {context}
 
@@ -192,12 +211,12 @@ export async function createRAGPrompt(
   conversationHistory: string
 ): Promise<string> {
   const context = formatDocumentsForContext(documents)
-  
+
   const formattedPrompt = await ragPromptTemplate.format({
     context,
     conversationHistory: conversationHistory || "No previous conversation.",
     question
   })
-  
+
   return formattedPrompt
 }

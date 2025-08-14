@@ -70,7 +70,7 @@ export function PlanUsage() {
 
   const tokenUsagePercent = (billing.tokensUsed / billing.tokensLimit) * 100;
   const storageUsagePercent = (billing.storageUsed / billing.storageLimit) * 100;
-  
+
   // Check if limits are exceeded or close to being exceeded
   const tokenLimitExceeded = billing.tokensUsed >= billing.tokensLimit;
   const storageLimitExceeded = billing.storageUsed >= billing.storageLimit;
@@ -120,19 +120,18 @@ export function PlanUsage() {
               )}
             </div>
             <span className={`font-medium ${tokenLimitExceeded ? "text-red-400" : tokenLimitClose ? "text-yellow-400" : "text-gray-100"}`}>
-              {billing.tokensUsed.toLocaleString()} / {billing.tokensLimit.toLocaleString()}
+              {(Math.min(billing.tokensUsed, billing.tokensLimit)).toLocaleString()} / {billing.tokensLimit.toLocaleString()}
             </span>
           </div>
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="w-full">
-                  <Progress 
-                    value={Math.min(tokenUsagePercent, 100)} 
-                    className={`h-2 bg-gray-700 cursor-pointer ${
-                      tokenLimitExceeded ? "[&>div]:bg-red-500" : 
+                  <Progress
+                    value={Math.min(tokenUsagePercent, 100)}
+                    className={`h-2 bg-gray-700 cursor-pointer ${tokenLimitExceeded ? "[&>div]:bg-red-500" :
                       tokenLimitClose ? "[&>div]:bg-yellow-500" : ""
-                    }`} 
+                      }`}
                   />
                 </div>
               </TooltipTrigger>
@@ -178,19 +177,18 @@ export function PlanUsage() {
               )}
             </div>
             <span className={`font-medium ${storageLimitExceeded ? "text-red-400" : storageLimitClose ? "text-yellow-400" : "text-gray-100"}`}>
-              {formatStorage(billing.storageUsed)} / {formatStorage(billing.storageLimit)}
+              {formatStorage(Math.min(billing.storageUsed, billing.storageLimit))} / {formatStorage(billing.storageLimit)}
             </span>
           </div>
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="w-full">
-                  <Progress 
-                    value={Math.min(storageUsagePercent, 100)} 
-                    className={`h-2 bg-gray-700 cursor-pointer ${
-                      storageLimitExceeded ? "[&>div]:bg-red-500" : 
+                  <Progress
+                    value={Math.min(storageUsagePercent, 100)}
+                    className={`h-2 bg-gray-700 cursor-pointer ${storageLimitExceeded ? "[&>div]:bg-red-500" :
                       storageLimitClose ? "[&>div]:bg-yellow-500" : ""
-                    }`} 
+                      }`}
                   />
                 </div>
               </TooltipTrigger>
@@ -230,13 +228,12 @@ export function PlanUsage() {
               <Button
                 variant={tokenLimitExceeded || storageLimitExceeded ? "default" : "ghost"}
                 size="sm"
-                className={`h-6 px-2 text-xs ${
-                  tokenLimitExceeded || storageLimitExceeded
-                    ? "bg-red-600 hover:bg-red-700 text-white font-medium"
-                    : tokenLimitClose || storageLimitClose
+                className={`h-6 px-2 text-xs ${tokenLimitExceeded || storageLimitExceeded
+                  ? "bg-red-600 hover:bg-red-700 text-white font-medium"
+                  : tokenLimitClose || storageLimitClose
                     ? "text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10 font-medium"
                     : "text-blue-400 hover:text-blue-300 hover:bg-blue-400/10"
-                }`}
+                  }`}
               >
                 {tokenLimitExceeded || storageLimitExceeded ? "Upgrade Now" : "Upgrade"}
               </Button>
@@ -263,11 +260,11 @@ export function PlanUsage() {
                   Account limits exceeded
                 </div>
                 <div className="text-xs text-red-300">
-                  {tokenLimitExceeded && storageLimitExceeded 
+                  {tokenLimitExceeded && storageLimitExceeded
                     ? "Both token and storage limits have been reached."
-                    : tokenLimitExceeded 
-                    ? "Token limit reached. Chat functionality is limited."
-                    : "Storage limit reached. File uploads are blocked."
+                    : tokenLimitExceeded
+                      ? "Token limit reached. Chat functionality is limited."
+                      : "Storage limit reached. File uploads are blocked."
                   } Upgrade your plan to continue using TalkPDF.
                 </div>
               </div>

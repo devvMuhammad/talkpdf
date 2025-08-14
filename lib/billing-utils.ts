@@ -34,13 +34,13 @@ export interface LimitCheckResult {
  */
 export async function ensureUserBilling(userId: string): Promise<BillingData | null> {
   let billing = await fetchQuery(api.billing.getUserBilling, { userId });
-  
+
   if (!billing) {
     // Initialize billing for new users
     await fetchMutation(api.billing.initializeUserBilling, { userId });
     billing = await fetchQuery(api.billing.getUserBilling, { userId });
   }
-  
+
   return billing;
 }
 
@@ -48,11 +48,11 @@ export async function ensureUserBilling(userId: string): Promise<BillingData | n
  * Check if user has enough tokens for an operation
  */
 export async function checkTokenLimit(
-  userId: string, 
+  userId: string,
   tokensNeeded: number
 ): Promise<LimitCheckResult> {
   const billing = await ensureUserBilling(userId);
-  
+
   if (!billing) {
     return {
       allowed: false,
@@ -62,7 +62,7 @@ export async function checkTokenLimit(
   }
 
   const available = billing.tokensLimit - billing.tokensUsed;
-  
+
   if (tokensNeeded > available) {
     return {
       allowed: false,
@@ -84,11 +84,11 @@ export async function checkTokenLimit(
  * Check if user has enough storage for upload
  */
 export async function checkStorageLimit(
-  userId: string, 
+  userId: string,
   bytesNeeded: number
 ): Promise<LimitCheckResult> {
   const billing = await ensureUserBilling(userId);
-  
+
   if (!billing) {
     return {
       allowed: false,
@@ -98,7 +98,7 @@ export async function checkStorageLimit(
   }
 
   const available = billing.storageLimit - billing.storageUsed;
-  
+
   if (bytesNeeded > available) {
     return {
       allowed: false,
@@ -127,6 +127,7 @@ export async function recordTokens(
     conversationId?: Id<"conversations">;
     messageId?: Id<"messages">;
     description?: string;
+    allowOverage?: boolean;
   }
 ): Promise<void> {
   try {
@@ -189,7 +190,7 @@ export function estimateFileProcessingTokens(fileCount: number, estimatedContent
     // If we have content length, use it for estimation
     return estimateTokens(estimatedContentLength.toString()) + (fileCount * 100); // Add overhead per file
   }
-  
+
   // Conservative estimate per file for PDF processing
   // Assumes average PDF has ~5-10 pages with ~500-1000 chars per page
   return fileCount * PRICING.TOKENS_PER_DOLLAR;
@@ -263,22 +264,11 @@ export function createUserFriendlyErrorMessage(result: LimitCheckResult, limitTy
     return result.error || "Limit exceeded";
   }
 
-  const { needed, available, currentUsage, limit } = result.details;
-  
+  const { currentUsage, limit } = result.details;
+
   if (limitType === 'tokens') {
-    const shortage = needed - available;
-    if (shortage > 0) {
-      return `You need ${formatNumber(shortage)} more tokens to complete this action. You've used ${formatNumber(currentUsage)} of your ${formatNumber(limit)} token limit. Upgrade your plan to continue.`;
-    }
     return `Token limit exceeded. You've used ${formatNumber(currentUsage)} of your ${formatNumber(limit)} tokens. Upgrade to get more tokens.`;
   } else {
-    const shortage = needed - available;
-    const neededMB = Math.ceil(needed / (1024 * 1024));
-    const availableMB = Math.floor(available / (1024 * 1024));
-    
-    if (shortage > 0) {
-      return `You need ${formatStorage(shortage)} more storage space. You have ${formatStorage(available)} available. Upgrade your plan to get more storage.`;
-    }
     return `Storage limit exceeded. You've used ${formatStorage(currentUsage)} of your ${formatStorage(limit)} storage limit. Upgrade to get more storage.`;
   }
 }

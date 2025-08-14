@@ -47,47 +47,17 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     },
     onError: (error) => {
       console.error("Chat error:", error)
-      
-      // Try to parse the error response to get detailed limit information
-      let errorMessage = error.message || "An error occurred";
-      
-      try {
-        // Check if the error is from a fetch response with JSON
-        if (error.message && error.message.includes("limit") || error.message.includes("token") || error.message.includes("storage")) {
-          errorMessage = error.message;
-        }
-      } catch (parseError) {
-        console.error("Error parsing error message:", parseError);
-      }
 
-      // Show a more prominent error for limit-related issues
-      if (errorMessage.toLowerCase().includes("limit") || 
-          errorMessage.toLowerCase().includes("exceed") ||
-          errorMessage.toLowerCase().includes("upgrade")) {
-        toast.error(errorMessage, {
-          duration: 10000, // Show longer for important limit messages
-          description: "Check your plan usage below and upgrade if needed.",
-          action: {
-            label: "View Usage",
-            onClick: () => {
-              // Scroll to plan usage component or show upgrade dialog
-              const planUsageElement = document.querySelector('[data-testid="plan-usage"]');
-              if (planUsageElement) {
-                planUsageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            }
-          }
-        });
-      } else {
-        toast.error(errorMessage);
-      }
+      // Try to parse the error response to get detailed limit information
+      toast.error("You have exceeded your token limit. Please upgrade your plan.", {
+        duration: 10000,
+      });
     }
   });
 
   const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [generateImages, setGenerateImages] = useState(false);
-  const [filesOpen, setFilesOpen] = useState(true);
 
   const isLoading = status === "submitted";
 
@@ -108,17 +78,7 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
   // Fetch signed download URLs for files
   const fileIds = useMemo(() => (files && files.length > 0 ? files.map((f) => f._id as Id<"files">) : []), [files]);
   const downloadArgs = useMemo(() => (fileIds.length > 0 ? { fileIds } : "skip" as const), [fileIds]);
-  const downloadInfo = useQuery(api.files.getDownloadUrls, downloadArgs);
-
-  const fileIdToUrl = useMemo(() => {
-    const map = new Map<string, string>();
-    if (downloadInfo) {
-      for (const d of downloadInfo as any[]) {
-        map.set(String(d.fileId), d.url);
-      }
-    }
-    return map;
-  }, [downloadInfo]);
+  // const downloadInfo = useQuery(api.files.getDownloadUrls, downloadArgs);
 
   // On mount, scroll to the bottom smoothly and initialize input height
   useEffect(() => {

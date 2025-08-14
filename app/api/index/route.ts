@@ -4,7 +4,6 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters"
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { OpenAIEmbeddings } from "@langchain/openai"
 import { Pinecone } from '@pinecone-database/pinecone'
-import { checkTokenLimit, recordTokens, createLimitErrorResponse, estimateTokens } from "@/lib/billing-utils"
 
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY!,
@@ -51,20 +50,9 @@ export async function POST(request: NextRequest) {
     if (!indexName || indexName.trim() === '') {
       throw new Error('Pinecone index name is not configured properly')
     }
-
-    // Estimate tokens needed for processing these files
-    // This is a rough estimate based on file sizes and OpenAI embedding costs
-    const estimatedTokensNeeded = files.reduce((total, file) => total + 500, 0); // Conservative estimate per file
-    
-    const tokenCheck = await checkTokenLimit(userId, estimatedTokensNeeded);
-    if (!tokenCheck.allowed) {
-      return createLimitErrorResponse(tokenCheck, 'tokens');
-    }
-
     const index = pinecone.index(indexName)
 
     let totalChunks = 0
-    let totalTokensUsed = 0
     const processedFiles = []
 
     for (const file of files) {
@@ -98,10 +86,6 @@ export async function POST(request: NextRequest) {
 
         // Generate embeddings for all chunks
         const texts = chunks.map(chunk => chunk.pageContent)
-        
-        // Estimate tokens used for this batch of embeddings
-        const tokensUsedForEmbeddings = texts.reduce((total, text) => total + estimateTokens(text), 0);
-        totalTokensUsed += tokensUsedForEmbeddings;
 
         const vectors = await embeddings.embedDocuments(texts)
 
@@ -142,18 +126,12 @@ export async function POST(request: NextRequest) {
     const successCount = processedFiles.filter(f => f.status === 'success').length
     const failedCount = processedFiles.filter(f => f.status === 'error').length
 
-    // Record token usage for the embedding generation
-    await recordTokens(userId, totalTokensUsed, "embedding_generation", {
-      description: `File indexing for ${files.length} files with ${totalChunks} chunks`,
-    });
-
     return NextResponse.json({
       success: true,
       message: `Indexed ${successCount}/${files.length} files successfully`,
       totalChunks,
       namespace,
       files: processedFiles,
-      tokensUsed: totalTokensUsed,
       summary: {
         total: files.length,
         successful: successCount,

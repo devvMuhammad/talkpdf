@@ -26,9 +26,8 @@ export async function POST(req: Request) {
       return new Response("Unauthorized", { status: 401 })
     }
 
-    // Check user's token limits before processing
-    const estimatedTokensNeeded = 1000; // Conservative estimate for chat response
-    const tokenCheck = await checkTokenLimit(userId, estimatedTokensNeeded);
+    const tokenCheck = await checkTokenLimit(userId, 0);
+    console.log("tokenCheck", tokenCheck)
     if (!tokenCheck.allowed) {
       return createLimitErrorResponse(tokenCheck, 'tokens');
     }
@@ -130,9 +129,11 @@ export async function POST(req: Request) {
           await recordTokens(userId, usage.totalTokens || 0, "chat_message", {
             conversationId,
             description: `Chat response with ${documentsFound} documents used`,
+            allowOverage: true,
           })
         } catch (tokenError) {
           console.error("Error getting token usage:", tokenError);
+          // return new Response("Error getting token usage", { status: 500 })
         }
 
         console.log(`RAG response completed. Documents used: ${documentsFound}`)

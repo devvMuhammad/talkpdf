@@ -1,22 +1,21 @@
 "use client";
 
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect, Suspense } from "react";
 import { UploadCloud, FileText, X, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FileProgressCards } from "@/components/ui/file-progress-cards";
 import { useFileHandler } from "@/hooks/use-file-handler";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@clerk/nextjs";
-import { Id } from "@/convex/_generated/dataModel";
+import { toast } from "sonner";
 
 function WelcomeStage() {
   const createConversation = useMutation(api.conversations.create)
   const addMessages = useMutation(api.conversations.addMessages)
-  // const attachToConversation = useMutation(api.files.attachToConversation)
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -25,17 +24,28 @@ function WelcomeStage() {
   const [uploadCompleted, setUploadCompleted] = useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { session } = useSession()
+
+  // Check for payment success
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    if (paymentStatus === 'success') {
+      toast.success('Payment successful!', {
+        description: 'Your account has been upgraded. You can now use your new credits.',
+        duration: 5000,
+      });
+      // Remove the payment parameter from URL
+      router.replace('/chat', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const {
     isUploading,
     isIndexing,
-    uploadError,
-    indexingError,
     uploadFiles,
     indexFiles,
-    clearErrors,
   } = useFileHandler()
 
 
@@ -80,7 +90,6 @@ function WelcomeStage() {
     setUploadSuccess(null);
     setErrorMessage(null);
     setUploadCompleted(false);
-    clearErrors();
 
     try {
       // Upload files using the new hook
@@ -125,8 +134,8 @@ function WelcomeStage() {
       };
 
       // Add both messages using the batch function
-      await addMessages({ 
-        conversationId, 
+      await addMessages({
+        conversationId,
         messages: [userMessageWithFiles, assistantMessage]
       });
 
@@ -232,7 +241,7 @@ function WelcomeStage() {
 
               {(isUploading || isIndexing) && (
                 <div className="mt-4">
-                  <FileProgressCards 
+                  <FileProgressCards
                     isUploading={isUploading}
                     isIndexing={isIndexing}
                     uploadCompleted={uploadCompleted}
@@ -281,10 +290,11 @@ function WelcomeStage() {
 }
 
 export default function Page() {
-
   return (
     <div className="flex-1 bg-gray-950 overflow-hidden">
-      <WelcomeStage />
+      <Suspense fallback={<div className="flex items-center justify-center h-full">Loading...</div>}>
+        <WelcomeStage />
+      </Suspense>
     </div>
   );
 }

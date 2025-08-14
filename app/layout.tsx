@@ -4,6 +4,11 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Inter } from "next/font/google"
 import type { ReactNode } from "react"
 import { ClerkProvider } from "@clerk/nextjs"
+import './globals.css'
+import { ConvexClientProvider } from "./context/convex-provider"
+import { Toaster } from "sonner"
+
+
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -20,6 +25,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <body className={cn("flex min-h-svh flex-col antialiased bg-gray-950 text-gray-100", inter.className)}>
           <ConvexClientProvider>
             <ThemeProvider defaultTheme="dark" storageKey="chatbot-theme">
+              <Toaster />
               <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
             </ThemeProvider>
           </ConvexClientProvider>
@@ -31,5 +37,3 @@ export default function Layout({ children }: { children: ReactNode }) {
 }
 
 
-import './globals.css'
-import { ConvexClientProvider } from "./context/convex-provider"

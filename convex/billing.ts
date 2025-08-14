@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { DEFAULT_LIMITS, PRICING } from "@/lib/config";
 
 // Initialize user billing data (called when a user first signs up)
 export const initializeUserBilling = mutation({
@@ -19,9 +20,9 @@ export const initializeUserBilling = mutation({
     const billingId = await ctx.db.insert("userBilling", {
       userId,
       tokensUsed: 0,
-      tokensLimit: 5000, // Initial 5k tokens
+      tokensLimit: DEFAULT_LIMITS.FREE_TOKENS, // Initial free tokens
       storageUsed: 0,
-      storageLimit: 5 * 1024 * 1024, // 5MB in bytes
+      storageLimit: DEFAULT_LIMITS.FREE_STORAGE_BYTES, // Free storage in bytes
       subscriptionType: "free",
       subscriptionStatus: "active",
       lastUpdated: Date.now(),
@@ -39,7 +40,7 @@ export const getUserBilling = query({
       .query("userBilling")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
-    
+
     if (!billing) {
       return null;
     }
@@ -48,7 +49,7 @@ export const getUserBilling = query({
   },
 });
 
-// Record token usage
+// Record token usage (graceful - doesn't throw when limits exceeded)
 export const recordTokenUsage = mutation({
   args: {
     userId: v.string(),
@@ -58,7 +59,8 @@ export const recordTokenUsage = mutation({
     operationType: v.union(
       v.literal("chat_message"),
       v.literal("file_processing"),
-      v.literal("embedding_generation")
+      v.literal("embedding_generation"),
+      v.literal("query_embedding")
     ),
     description: v.optional(v.string()),
   },
@@ -75,14 +77,11 @@ export const recordTokenUsage = mutation({
       throw new Error("User billing not initialized");
     }
 
-    // Check if user has enough tokens
-    if (billing.tokensUsed + tokensUsed > billing.tokensLimit) {
-      throw new Error("Insufficient tokens");
-    }
+    const newTokensUsed = billing.tokensUsed + tokensUsed;
 
     // Update user billing
     await ctx.db.patch(billing._id, {
-      tokensUsed: billing.tokensUsed + tokensUsed,
+      tokensUsed: newTokensUsed,
       lastUpdated: Date.now(),
     });
 
@@ -97,7 +96,7 @@ export const recordTokenUsage = mutation({
       createdAt: Date.now(),
     });
 
-    return billing.tokensUsed + tokensUsed;
+    return newTokensUsed;
   },
 });
 
@@ -123,7 +122,7 @@ export const recordStorageUsage = mutation({
       throw new Error("User billing not initialized");
     }
 
-    const newStorageUsed = operationType === "file_upload" 
+    const newStorageUsed = operationType === "file_upload"
       ? billing.storageUsed + sizeBytes
       : billing.storageUsed - sizeBytes;
 
@@ -171,7 +170,7 @@ export const updateUserLimits = mutation({
     }
 
     const updates: any = { lastUpdated: Date.now() };
-    
+
     if (tokensLimit !== undefined) updates.tokensLimit = tokensLimit;
     if (storageLimit !== undefined) updates.storageLimit = storageLimit;
     if (subscriptionType !== undefined) updates.subscriptionType = subscriptionType;
@@ -184,7 +183,7 @@ export const updateUserLimits = mutation({
 
 // Get usage history for a user
 export const getUserUsageHistory = query({
-  args: { 
+  args: {
     userId: v.string(),
     limit: v.optional(v.number()),
   },
@@ -228,5 +227,58 @@ export const resetUserTokens = mutation({
     });
 
     return billing._id;
+  },
+});
+
+// Upgrade user limits (converted from API route)
+export const upgradeUser = mutation({
+  args: {
+    userId: v.string(),
+    tokensToAdd: v.number(),
+    storageToAdd: v.number(),
+    subscriptionType: v.optional(v.union(v.literal("free"), v.literal("paid"))),
+  },
+  handler: async (ctx, { userId, tokensToAdd, storageToAdd, subscriptionType }) => {
+    // Validate inputs
+    if (tokensToAdd < 1000 || tokensToAdd > 100000) {
+      throw new Error("Tokens to add must be between 1,000 and 100,000");
+    }
+    if (storageToAdd < 0 || storageToAdd > 10 * 1024 * 1024 * 1024) {
+      throw new Error("Storage to add must be between 0 and 10GB");
+    }
+
+    const billing = await ctx.db
+      .query("userBilling")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!billing) {
+      throw new Error("User billing not initialized");
+    }
+
+    // Calculate pricing (simplified - in real app you'd integrate with Stripe)
+    const tokenCost = Math.ceil(tokensToAdd / PRICING.TOKENS_PER_DOLLAR) * 1; // $1 per configured tokens
+    const storageCost = Math.ceil(storageToAdd / (PRICING.STORAGE_MB_PER_DOLLAR * 1024 * 1024)) * 1; // $1 per configured storage
+    const totalCost = tokenCost + storageCost;
+
+    const newTokenLimit = billing.tokensLimit + tokensToAdd;
+    const newStorageLimit = billing.storageLimit + storageToAdd;
+
+    // Update user limits
+    await ctx.db.patch(billing._id, {
+      tokensLimit: newTokenLimit,
+      storageLimit: newStorageLimit,
+      subscriptionType: subscriptionType || billing.subscriptionType,
+      lastUpdated: Date.now(),
+    });
+
+    return {
+      success: true,
+      cost: totalCost,
+      newLimits: {
+        tokens: newTokenLimit,
+        storage: newStorageLimit,
+      },
+    };
   },
 });
