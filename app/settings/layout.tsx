@@ -1,6 +1,18 @@
 import type React from "react";
 import Link from "next/link";
 import { SettingsNavbar } from "@/components/settings-navbar";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: {
+    template: "%s | Settings",
+    default: "Settings | TalkPDF",
+  },
+  description: "Manage your account settings, preferences, and usage for TalkPDF.",
+  icons: {
+    icon: "/favicon.ico",
+  },
+};
 
 function SettingsSidebar() {
   return (

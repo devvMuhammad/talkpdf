@@ -6,7 +6,7 @@ export const LEMON_SQUEEZY_WEBHOOK_SECRET = process.env.LEMON_SQUEEZY_WEBHOOK_SE
 
 // Default Limits
 export const DEFAULT_LIMITS = {
-  FREE_TOKENS: 5000,
+  FREE_TOKENS: 10000,
   FREE_STORAGE_BYTES: 5 * 1024 * 1024, // 5MB
 } as const;
 
@@ -35,7 +35,7 @@ if (typeof window === 'undefined' && process.env.NODE_ENV === 'production') {
   // Only check in production to avoid development warnings
   const requiredEnvVars = [
     'LEMON_SQUEEZY_API_KEY',
-    'LEMON_SQUEEZY_STORE_ID', 
+    'LEMON_SQUEEZY_STORE_ID',
     'LEMON_SQUEEZY_VARIANT_ID',
     'LEMON_SQUEEZY_WEBHOOK_SECRET',
   ];

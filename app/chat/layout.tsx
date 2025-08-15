@@ -6,6 +6,19 @@ import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { fetchMutation, fetchQuery } from "convex/nextjs"
 import { api } from "@/convex/_generated/api"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: {
+    template: "%s | TalkPDF",
+    default: "Chat | TalkPDF",
+  },
+  description: "Chat with your PDFs using AI - Upload, analyze, and ask questions about your documents.",
+  icons: {
+    icon: "/favicon.ico",
+  },
+}
+
 
 export default async function ChatLayout({ children }: { children: ReactNode }) {
   const { userId } = await auth()

@@ -13,9 +13,8 @@ import { Toaster } from "sonner"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "OpenAI and AI SDK Chatbot",
-  description: "A comprehensive AI chatbot with dark theme and sidebar management.",
-  generator: 'v0.dev'
+  title: "TalkPDF",
+  description: "Chat with your PDFs using AI - Upload, analyze, and ask questions about your documents.",
 }
 
 export default function Layout({ children }: { children: ReactNode }) {

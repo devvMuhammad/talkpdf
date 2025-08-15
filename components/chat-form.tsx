@@ -2,27 +2,20 @@
 
 import type React from "react";
 
-import { useState, useEffect, useRef, useMemo } from "react";
-import { SparklesIcon, PaperclipIcon, SendHorizontal, ChevronDown, Download } from "lucide-react";
-import { ModelSelector } from "@/components/model-selector";
-import { Doc, Id } from "@/convex/_generated/dataModel";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { useState, useEffect, useRef } from "react";
+import { SparklesIcon, PaperclipIcon, SendHorizontal, ChevronDown } from "lucide-react";
+import { Doc } from "@/convex/_generated/dataModel";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport, FileUIPart, type UIMessage } from "ai";
 
 import { Button } from "@/components/ui/button";
 import { AutoResizeTextarea } from "@/components/autoresize-textarea";
-import { api } from "@/convex/_generated/api";
-import { useQuery } from "convex/react";
 import { toast } from "sonner";
 import { MemoizedMarkdown } from "./memoized-markdown";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
 import { FileAttachmentCards } from "@/components/ui/file-attachment-cards";
+import { FilePreviewCards } from "@/components/ui/file-preview-cards";
+import { useFileHandler } from "@/hooks/use-file-handler";
 
 interface ChatFormProps extends React.ComponentProps<"form"> {
   conversationId?: string;
@@ -30,7 +23,7 @@ interface ChatFormProps extends React.ComponentProps<"form"> {
   files?: Doc<"files">[];
 }
 
-export function ChatForm({ conversationId, initialMessages, files }: ChatFormProps) {
+export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
   const { messages, status, sendMessage } = useChat({
     id: conversationId,
     transport: new DefaultChatTransport({
@@ -47,27 +40,26 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     },
     onError: (error) => {
       console.error("Chat error:", error)
-
-      if (error.message.includes("limit")) {
-        // Try to parse the error response to get detailed limit information
-        toast.error("You have exceeded your token limit. Please upgrade your plan.", {
-          duration: 10000,
-        });
-      }
-      toast.error(error.message);
+      toast.error(error.message || "Something went wrong. Please try again.", {
+        duration: 8000,
+        className: "bg-red-950 text-red-50 border-red-800",
+      });
     }
   });
 
   const [input, setInput] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
-  const [generateImages, setGenerateImages] = useState(false);
+
+  // File upload state
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const { uploadFiles, indexFiles, isUploading, isIndexing } = useFileHandler();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isLoading = status === "submitted";
 
   // Keep a ref to the scrollable container so we can auto-scroll to bottom
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const inputContainerRef = useRef<HTMLDivElement | null>(null);
-  const [inputHeight, setInputHeight] = useState<number>(0);
   const [isAtBottom, setIsAtBottom] = useState<boolean>(true);
   const isAtBottomRef = useRef<boolean>(true);
   isAtBottomRef.current = isAtBottom;
@@ -78,25 +70,12 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   };
 
-  // Fetch signed download URLs for files
-  const fileIds = useMemo(() => (files && files.length > 0 ? files.map((f) => f._id as Id<"files">) : []), [files]);
-  const downloadArgs = useMemo(() => (fileIds.length > 0 ? { fileIds } : "skip" as const), [fileIds]);
-  // const downloadInfo = useQuery(api.files.getDownloadUrls, downloadArgs);
-
   // On mount, scroll to the bottom smoothly and initialize input height
   useEffect(() => {
     const id = window.setTimeout(() => {
       scrollToBottom();
       setIsAtBottom(true);
     }, 50);
-
-    const measure = () => {
-      const el = inputContainerRef.current;
-      if (!el) return;
-      setInputHeight(el.offsetHeight || 0);
-    };
-
-    measure();
 
     return () => {
       window.clearTimeout(id);
@@ -120,13 +99,60 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
     };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const value = input.trim();
-    if (!value) return;
-    sendMessage({ text: value });
-    setInput("");
-    scrollToBottom()
+
+    // If there are files to upload but no text, require at least some text
+    if (selectedFiles.length > 0 && !value) {
+      toast.error("Please add a message to send with your files", {
+        className: "bg-red-950 text-red-50 border-red-800",
+      });
+      return;
+    }
+
+    if (!value && selectedFiles.length === 0) return;
+
+    try {
+      let files: FileUIPart[] = [];
+
+      // Handle file uploads if there are any
+      if (selectedFiles.length > 0) {
+        // Upload files
+        const uploaded = await uploadFiles(selectedFiles);
+
+        // Index files  
+        await indexFiles(uploaded, conversationId);
+
+        // Add file parts to message
+        files = uploaded.map(file => ({
+          type: "file",
+          mediaType: file.type,
+          filename: file.name,
+          url: file.url
+        }));
+
+        // Clear uploaded files
+        setSelectedFiles([]);
+        setUploadedFiles([]);
+      }
+
+      sendMessage({
+        text: value,
+        files
+      });
+
+      setInput("");
+      scrollToBottom();
+
+    } catch (error) {
+      console.error("Error sending message with files:", error);
+
+      toast.error(error instanceof Error ? error.message : "Something went wrong. Please try again.", {
+        duration: 8000,
+        className: "bg-red-950 text-red-50 border-red-800",
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -134,6 +160,30 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
       e.preventDefault();
       handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const fileArray = Array.from(files);
+      // Validate file types
+      const invalidFiles = fileArray.filter(file => file.type !== "application/pdf");
+      if (invalidFiles.length > 0) {
+        toast.error("Only PDF files are supported", {
+          className: "bg-red-950 text-red-50 border-red-800",
+        });
+        return;
+      }
+      setSelectedFiles(prev => [...prev, ...fileArray]);
+    }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -214,11 +264,31 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
             </Button>
           )}
 
+          {/* File Preview Cards */}
+          {selectedFiles.length > 0 && (
+            <div className="mb-3">
+              <FilePreviewCards
+                files={selectedFiles}
+                uploadedFiles={uploadedFiles}
+                onRemoveFile={handleRemoveFile}
+                isUploading={isUploading}
+                isIndexing={isIndexing}
+              />
+            </div>
+          )}
+
           <form
             onSubmit={handleSubmit}
             className="rounded-2xl border border-gray-700 bg-gray-900 overflow-hidden shadow-lg"
           >
-            {/* Scroll-to-bottom above the textarea */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              multiple
+              className="hidden"
+              onChange={handleFileSelect}
+            />
             <AutoResizeTextarea
               onKeyDown={handleKeyDown}
               onChange={(v) => setInput(v)}
@@ -227,12 +297,6 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
               className="w-full bg-transparent text-gray-100 placeholder:text-gray-400 focus:outline-none border-none resize-none px-6 py-4 text-base min-h-[60px] max-h-[200px]"
             />
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700 bg-gray-800/30 rounded-b-2xl">
-              <ModelSelector
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-                generateImages={generateImages}
-                onGenerateImagesChange={setGenerateImages}
-              />
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -242,9 +306,12 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
                   <SparklesIcon size={16} />
                 </Button>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-lg transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading || isIndexing}
+                  className="h-8 w-8 p-0 text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50"
                 >
                   <PaperclipIcon size={16} />
                 </Button>
@@ -253,7 +320,7 @@ export function ChatForm({ conversationId, initialMessages, files }: ChatFormPro
                   variant="ghost"
                   size="sm"
                   className="h-8 w-8 p-0 bg-gray-100 text-gray-900 hover:bg-gray-200 rounded-lg disabled:opacity-50 transition-colors"
-                  disabled={!input.trim() || isLoading}
+                  disabled={(!input.trim() && selectedFiles.length === 0) || isLoading || isUploading || isIndexing}
                 >
                   <SendHorizontal size={16} />
                 </Button>

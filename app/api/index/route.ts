@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
             fileName: file.name,
             userId,
             source: file.url,
-            conversationId: conversationId || null,
+            conversationId: conversationId || "",
           }
         }))
 
@@ -116,10 +116,10 @@ export async function POST(request: NextRequest) {
         }
 
         totalChunks += chunks.length
-        
+
         // Get the first few chunks of text content for title generation
         const textContent = chunks.slice(0, 3).map(chunk => chunk.pageContent).join(' ')
-        
+
         processedFiles.push({
           fileId: file.fileId,
           fileName: file.name,

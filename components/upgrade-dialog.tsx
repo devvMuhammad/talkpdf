@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription 
+import {
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +65,7 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
   });
 
   const watchedValues = watch();
-  
+
   // Calculate costs
   const tokenCost = Math.ceil(watchedValues.tokens / PRICING.TOKENS_PER_DOLLAR); // $1 per configured tokens
   const storageCost = Math.ceil(watchedValues.storage / PRICING.STORAGE_MB_PER_DOLLAR); // $1 per configured storage
@@ -83,12 +83,14 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
 
   const onSubmit = async (data: UpgradeFormData) => {
     if (!user?.id) {
-      toast.error("User not authenticated");
+      toast.error("User not authenticated", {
+        className: "bg-red-950 text-red-50 border-red-800",
+      });
       return;
     }
 
     setIsSubmitting(true);
-    
+
     try {
       // Create Lemon Squeezy checkout
       const response = await fetch('/api/checkout', {
@@ -111,7 +113,7 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
 
       // Redirect user to Lemon Squeezy checkout
       window.location.href = checkout_url;
-      
+
       // Note: The onSuccess callback will be called via webhook after successful payment
       // For now, we'll show a message that the user is being redirected
       toast.success("Redirecting to checkout...", {
@@ -122,6 +124,7 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
       console.error("Checkout error:", error);
       toast.error("Checkout failed", {
         description: error instanceof Error ? error.message : "Please try again",
+        className: "bg-red-950 text-red-50 border-red-800",
       });
       setIsSubmitting(false); // Reset loading state on error
     }
@@ -238,9 +241,9 @@ export function UpgradeDialog({ currentBilling, onSuccess }: UpgradeDialogProps)
         </Card>
 
         {/* Submit Button */}
-        <Button 
-          type="submit" 
-          className="w-full" 
+        <Button
+          type="submit"
+          className="w-full"
           disabled={isSubmitting || totalCost === 0}
         >
           {isSubmitting ? (

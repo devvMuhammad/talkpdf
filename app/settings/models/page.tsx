@@ -11,6 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Construction, Settings } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Models",
+  description: "Configure AI model settings and API keys for TalkPDF.",
+};
 
 export default function ModelsPage() {
   return (

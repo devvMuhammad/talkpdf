@@ -6,6 +6,24 @@ import { type UIMessage } from "ai";
 import { api } from "@/convex/_generated/api";
 import { fetchQuery } from "convex/nextjs";
 import { Id } from "@/convex/_generated/dataModel";
+import type { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ chatId: string }> }): Promise<Metadata> {
+  const { chatId } = await params;
+  const chat = await getChatById(chatId);
+
+  if (!chat) {
+    return {
+      title: "Chat not found",
+      description: "The requested chat conversation could not be found.",
+    };
+  }
+
+  return {
+    title: chat.title,
+    description: `Continue your conversation about ${chat.title} with AI-powered PDF analysis.`,
+  };
+}
 
 export default async function ChatIdPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = await params

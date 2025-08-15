@@ -31,7 +31,9 @@ export function PlanUsage() {
         })
         .catch((error) => {
           console.error("Failed to initialize billing:", error);
-          toast.error("Failed to initialize account. Please try refreshing the page.");
+          toast.error("Failed to initialize account. Please try refreshing the page.", {
+            className: "bg-red-950 text-red-50 border-red-800",
+          });
         })
         .finally(() => {
           setIsInitializing(false);

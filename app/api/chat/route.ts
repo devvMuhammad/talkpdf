@@ -23,7 +23,13 @@ export async function POST(req: Request) {
   try {
     const { userId } = await auth()
     if (!userId) {
-      return new Response("Unauthorized", { status: 401 })
+      return new Response(JSON.stringify({
+        error: "Unauthorized",
+        message: "Please sign in to continue"
+      }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      })
     }
 
     const tokenCheck = await checkTokenLimit(userId, 0);
@@ -37,10 +43,18 @@ export async function POST(req: Request) {
       conversationId: Id<"conversations">
     }
 
+
     // Get the latest user message
     const latestMessage = messages.at(-1)
+    console.log("LATEST MESSAGE", latestMessage)
     if (!latestMessage) {
-      return new Response("No messages provided", { status: 400 })
+      return new Response(JSON.stringify({
+        error: "Invalid request",
+        message: "No messages provided"
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      })
     }
 
     // Extract text from the latest message
@@ -50,7 +64,13 @@ export async function POST(req: Request) {
       .join(" ")
 
     if (!userQuestion.trim()) {
-      return new Response("No text content in message", { status: 400 })
+      return new Response(JSON.stringify({
+        error: "Invalid request",
+        message: "Message must contain text content"
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      })
     }
 
     let ragPrompt = systemPrompt
@@ -98,7 +118,23 @@ export async function POST(req: Request) {
       originalMessages: messages,
       onError(error) {
         console.error("Streaming error:", error)
-        return error instanceof Error ? error.message : "An error occurred during response generation"
+
+        // Provide more specific error messages based on error type
+        if (error instanceof Error) {
+          if (error.message.includes("timeout")) {
+            return "Request timed out. Please try again."
+          } else if (error.message.includes("rate")) {
+            return "Too many requests. Please wait a moment and try again."
+          } else if (error.message.includes("token")) {
+            return "Token limit exceeded. Please upgrade your plan."
+          } else if (error.message.includes("network")) {
+            return "Network error. Please check your connection and try again."
+          } else {
+            return error.message
+          }
+        }
+
+        return "An error occurred during response generation. Please try again."
       },
       onFinish: async ({ responseMessage }) => {
         if (!responseMessage) return;
@@ -142,13 +178,56 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error("Chat API error:", error)
+
+    // Determine appropriate error status and message
+    let status = 500
+    let errorResponse = {
+      error: "Internal server error",
+      message: "An unexpected error occurred. Please try again."
+    }
+
+    if (error instanceof Error) {
+      // Handle specific error types
+      if (error.message.includes("Unauthorized") || error.message.includes("401")) {
+        status = 401
+        errorResponse = {
+          error: "Unauthorized",
+          message: "Please sign in to continue"
+        }
+      } else if (error.message.includes("timeout")) {
+        status = 408
+        errorResponse = {
+          error: "Request timeout",
+          message: "Request timed out. Please try again."
+        }
+      } else if (error.message.includes("rate") || error.message.includes("429")) {
+        status = 429
+        errorResponse = {
+          error: "Rate limit exceeded",
+          message: "Too many requests. Please wait a moment and try again."
+        }
+      } else if (error.message.includes("token") || error.message.includes("limit")) {
+        status = 402
+        errorResponse = {
+          error: "Token limit exceeded",
+          message: "You have reached your token limit. Please upgrade your plan."
+        }
+      } else if (error.message.includes("network") || error.message.includes("fetch")) {
+        status = 503
+        errorResponse = {
+          error: "Service unavailable",
+          message: "Network error. Please check your connection and try again."
+        }
+      } else {
+        // Use the actual error message for other cases
+        errorResponse.message = error.message
+      }
+    }
+
     return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error"
-      }),
+      JSON.stringify(errorResponse),
       {
-        status: 500,
+        status,
         headers: { "Content-Type": "application/json" }
       }
     )
