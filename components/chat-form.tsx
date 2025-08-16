@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { MemoizedMarkdown } from "./memoized-markdown";
 import { FileAttachmentCards } from "@/components/ui/file-attachment-cards";
 import { FilePreviewCards } from "@/components/ui/file-preview-cards";
+import { WeatherWidget } from "@/components/ui/weather-widget";
+import { NewsWidget } from "@/components/ui/news-widget";
 import { useFileHandler } from "@/hooks/use-file-handler";
 
 interface ChatFormProps extends React.ComponentProps<"form"> {
@@ -198,9 +200,10 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
             {messages.map((message, index) => {
               const isAssistant = message.role === "assistant";
 
-              // Separate text parts and file parts
+              // Separate different types of parts
               const textParts = message.parts.filter(part => part.type === "text");
               const fileParts = message.parts.filter(part => part.type === "file");
+              const toolParts = message.parts.filter(part => part.type.startsWith("tool-"));
               const textContent = textParts.map(part => part.text).join("");
 
               return (
@@ -213,6 +216,48 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
                           files={fileParts}
                           className={isAssistant ? "" : "justify-end"}
                         />
+                      </div>
+                    )}
+
+                    {/* Tool call results */}
+                    {isAssistant && toolParts.length > 0 && (
+                      <div className="mb-4 space-y-3">
+                        {toolParts.map((toolPart: any, toolIndex) => {
+                          if (toolPart.type === "tool-weather" && toolPart.state === "output-available") {
+                            return (
+                              <WeatherWidget
+                                key={toolIndex}
+                                data={toolPart.output}
+                              />
+                            );
+                          }
+                          
+                          if (toolPart.type === "tool-news" && toolPart.state === "output-available") {
+                            return (
+                              <NewsWidget
+                                key={toolIndex}
+                                data={toolPart.output}
+                              />
+                            );
+                          }
+                          
+                          // Handle loading state for tool calls
+                          if (toolPart.state === "loading" || toolPart.state === "executing") {
+                            const toolName = toolPart.type.replace("tool-", "");
+                            return (
+                              <div key={toolIndex} className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                                <div className="flex gap-1">
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-75" />
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse delay-150" />
+                                </div>
+                                <span className="text-gray-300 capitalize">Getting {toolName} data...</span>
+                              </div>
+                            );
+                          }
+                          
+                          return null;
+                        })}
                       </div>
                     )}
 
@@ -296,7 +341,7 @@ export function ChatForm({ conversationId, initialMessages }: ChatFormProps) {
               placeholder="Type your message... (Shift+Enter for new line)"
               className="w-full bg-transparent text-gray-100 placeholder:text-gray-400 focus:outline-none border-none resize-none px-6 py-4 text-base min-h-[60px] max-h-[200px]"
             />
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700 bg-gray-800/30 rounded-b-2xl">
+            <div className="flex items-center justify-end px-4 py-3 border-t border-gray-700 bg-gray-800/30 rounded-b-2xl">
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
