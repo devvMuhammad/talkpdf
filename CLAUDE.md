@@ -297,6 +297,18 @@ File parts are rendered using the `FileAttachmentCards` component:
 - Download functionality for all files
 - Proper error handling for missing properties
 
+## Development Guidelines
+
+### TypeScript Validation
+
+Always run TypeScript checks after making code changes to ensure type safety:
+
+```bash
+npx tsc
+```
+
+This command should be executed as a final verification step for any TypeScript modifications to catch type errors early and maintain code quality.
+
 ---
 
 *This implementation provides a robust, scalable foundation for PDF processing and vector search capabilities in the TalkPDF application.*
